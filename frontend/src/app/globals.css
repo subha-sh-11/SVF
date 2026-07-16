@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+}
+
+/* ---------- Light theme (default) ---------- */
+:root {
+  --canvas: #f4f5f3;
+  --surface: #ffffff;
+  --muted: #f5f6f4;
+  --chip: #ececee;
+  --line: #e5e6e4;
+  --text-strong: #1c2620;
+  --text-body: #474d49;
+  --text-faint: #868b88;
+  --sidebar: #17251a;
+  --sidebar-fg: #cdd6cd;
+
+  /* warm beige table (light) — only the table is beige */
+  --table-bg: #f7f0e0;
+  --table-head: #efe4c9;
+  --table-stripe: #f2ead7;
+  --table-line: #e3d7ba;
+}
+
+/* ---------- Dark theme ---------- */
+[data-theme="dark"] {
+  --canvas: #0a0e15;
+  --surface: #141b26;
+  --muted: #1a2230;
+  --chip: #222c3b;
+  --line: #1a222e; /* subtle: felt, not seen */
+  --text-strong: #eef2f8;
+  --text-body: #a7b1c1;
+  --text-faint: #66717f;
+  --sidebar: #0c130d;
+  --sidebar-fg: #c9d6c9;
+
+  /* table (dark) */
+  --table-bg: #141b26;
+  --table-head: #1b2432;
+  --table-stripe: #182029;
+  --table-line: #232d3b;
+
+  /* accent tints adapt to any accent hue */
+  --brand-50: color-mix(in srgb, var(--brand-500) 15%, transparent);
+  --brand-100: color-mix(in srgb, var(--brand-500) 24%, transparent);
+  --brand-300: color-mix(in srgb, var(--brand-500) 55%, #000);
+  --brand-700: color-mix(in srgb, var(--brand-400) 92%, #fff);
+}
+
+/* ---------- Accent presets ---------- */
+:root,
+[data-accent="amber"] {
+  --brand-50: #eef4ec;
+  --brand-100: #d8e7d2;
+  --brand-300: #8ebd82;
+  --brand-400: #5f9a53;
+  --brand-500: #417e37;
+  --brand-600: #34682c;
+  --brand-700: #295121;
+}
+[data-accent="indigo"] {
+  --brand-50: #eef2ff;
+  --brand-100: #e0e7ff;
+  --brand-300: #a5b4fc;
+  --brand-400: #818cf8;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+}
+[data-accent="emerald"] {
+  --brand-50: #ecfdf5;
+  --brand-100: #d1fae5;
+  --brand-300: #6ee7b7;
+  --brand-400: #34d399;
+  --brand-500: #10b981;
+  --brand-600: #059669;
+  --brand-700: #047857;
+}
+[data-accent="ocean"] {
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+}
+[data-accent="rose"] {
+  --brand-50: #fff1f2;
+  --brand-100: #ffe4e6;
+  --brand-300: #fda4af;
+  --brand-400: #fb7185;
+  --brand-500: #f43f5e;
+  --brand-600: #e11d48;
+  --brand-700: #be123c;
+}
+
+/* re-apply dark tint overrides after accent presets (cascade order) */
+[data-theme="dark"][data-accent] {
+  --brand-50: color-mix(in srgb, var(--brand-500) 15%, transparent);
+  --brand-100: color-mix(in srgb, var(--brand-500) 24%, transparent);
+  --brand-300: color-mix(in srgb, var(--brand-500) 55%, #000);
+  --brand-700: color-mix(in srgb, var(--brand-400) 92%, #fff);
+}
+
+body {
+  background: var(--canvas);
+  color: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--chip);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+  background-clip: content-box;
+}
