@@ -1,4 +1,5 @@
-import { STATS, THEATRES } from "@/data/theatres";
+import { Theatre, statsOf } from "@/data/theatres";
+import { getTheatres } from "@/lib/theatres.server";
 import CoverageCard from "@/components/CoverageCard";
 
 function Metric({ label, value }: { label: string; value: string | number }) {
@@ -14,9 +15,9 @@ function Metric({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function formatBreakdown() {
+function formatBreakdown(theatres: Theatre[]) {
   const counts: Record<string, number> = {};
-  for (const t of THEATRES) {
+  for (const t of theatres) {
     for (const s of t.screens) {
       const f = (s.format || "Unspecified").toString().trim().toUpperCase();
       counts[f] = (counts[f] || 0) + 1;
@@ -25,18 +26,20 @@ function formatBreakdown() {
   return Object.entries(counts).sort((a, b) => b[1] - a[1]);
 }
 
-function topCentres() {
+function topCentres(theatres: Theatre[]) {
   const counts: Record<string, number> = {};
-  for (const t of THEATRES) counts[t.centre] = (counts[t.centre] || 0) + 1;
+  for (const t of theatres) counts[t.centre] = (counts[t.centre] || 0) + 1;
   return Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8);
 }
 
-export default function DashboardPage() {
-  const formats = formatBreakdown();
-  const centres = topCentres();
-  const maxFmt = Math.max(...formats.map((f) => f[1]));
+export default async function DashboardPage() {
+  const theatres = await getTheatres();
+  const STATS = statsOf(theatres);
+  const formats = formatBreakdown(theatres);
+  const centres = topCentres(theatres);
+  const maxFmt = Math.max(...formats.map((f) => f[1]), 1);
 
   return (
     <div className="space-y-7">
@@ -63,7 +66,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <CoverageCard />
+        <CoverageCard theatres={theatres} />
 
         {/* Screen formats */}
         <div className="rounded-lg border border-line bg-surface p-5">

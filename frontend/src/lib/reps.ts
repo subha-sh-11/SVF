@@ -5,6 +5,7 @@ import {
   DEFAULT_REPS,
   REP_COLORS,
   Representative,
+  RepStatus,
 } from "@/data/representatives";
 
 const KEY = "svf.reps.v1";
@@ -52,11 +53,11 @@ export type RepInput = {
   region: string;
 };
 
-export function addRep(data: RepInput): string {
+export function addRep(data: RepInput, status: RepStatus = "approved"): string {
   const list = load();
   const id = newId();
   const color = REP_COLORS[list.length % REP_COLORS.length];
-  persist([...list, { id, color, ...data }]);
+  persist([...list, { id, color, status, ...data }]);
   return id;
 }
 
@@ -66,6 +67,14 @@ export function updateRep(id: string, data: Partial<RepInput>) {
 
 export function deleteRep(id: string) {
   persist(load().filter((r) => r.id !== id));
+}
+
+export function setRepStatus(id: string, status: RepStatus) {
+  persist(load().map((r) => (r.id === id ? { ...r, status } : r)));
+}
+
+export function setRepRole(id: string, roleId: string | undefined) {
+  persist(load().map((r) => (r.id === id ? { ...r, roleId } : r)));
 }
 
 export function repMap(list: Representative[]): Record<string, Representative> {

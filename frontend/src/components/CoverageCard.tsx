@@ -1,20 +1,20 @@
 "use client";
 
-import { THEATRES } from "@/data/theatres";
+import { Theatre } from "@/data/theatres";
 import { useReps } from "@/lib/reps";
 import { useAssignments } from "@/lib/assignments";
 import RepAvatar from "./RepAvatar";
 
-export default function CoverageCard() {
+export default function CoverageCard({ theatres }: { theatres: Theatre[] }) {
   const assignments = useAssignments();
   const reps = useReps();
 
-  const total = THEATRES.length;
-  const assigned = THEATRES.filter((t) => assignments[t.id]).length;
+  const total = theatres.length;
+  const assigned = theatres.filter((t) => assignments[t.id]).length;
   const pct = Math.round((assigned / total) * 100);
 
   const load: Record<string, number> = {};
-  for (const t of THEATRES) {
+  for (const t of theatres) {
     const r = assignments[t.id];
     if (r) load[r] = (load[r] || 0) + 1;
   }

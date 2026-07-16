@@ -1,3 +1,5 @@
+export type RepStatus = "pending" | "approved" | "rejected";
+
 export type Representative = {
   id: string;
   name: string;
@@ -5,6 +7,8 @@ export type Representative = {
   email: string;
   region: string;
   color: string; // accent for avatar/badge
+  status: RepStatus;
+  roleId?: string;
 };
 
 export const REP_COLORS = [

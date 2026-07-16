@@ -1,5 +1,3 @@
-import raw from "./theatres.json";
-
 export type RateSlab = {
   rate: number | string | null;
   aud: number | string | null;
@@ -27,11 +25,6 @@ export type Theatre = {
   screens: Screen[];
 };
 
-export const THEATRES: Theatre[] = raw as Theatre[];
-
-export const MULTIPLEXES = THEATRES.filter((t) => t.type === "multiplex");
-export const SINGLE_SCREENS = THEATRES.filter((t) => t.type === "single");
-
 export type DistrictSummary = {
   name: string;
   total: number;
@@ -39,9 +32,10 @@ export type DistrictSummary = {
   singles: number;
 };
 
-export const DISTRICTS: DistrictSummary[] = (() => {
+/** District summaries derived from a theatre list (sorted by size). */
+export function districtsOf(theatres: Theatre[]): DistrictSummary[] {
   const map = new Map<string, DistrictSummary>();
-  for (const t of THEATRES) {
+  for (const t of theatres) {
     const d =
       map.get(t.district) ||
       { name: t.district, total: 0, multiplexes: 0, singles: 0 };
@@ -51,16 +45,19 @@ export const DISTRICTS: DistrictSummary[] = (() => {
     map.set(t.district, d);
   }
   return [...map.values()].sort((a, b) => b.total - a.total);
-})();
+}
 
-export const STATS = {
-  total: THEATRES.length,
-  multiplexes: MULTIPLEXES.length,
-  singles: SINGLE_SCREENS.length,
-  screens: THEATRES.reduce((n, t) => n + t.screen_count, 0),
-  centres: new Set(THEATRES.map((t) => t.centre)).size,
-  capacity: THEATRES.reduce((n, t) => n + (t.capacity || 0), 0),
-};
+/** Headline stats derived from a theatre list. */
+export function statsOf(theatres: Theatre[]) {
+  return {
+    total: theatres.length,
+    multiplexes: theatres.filter((t) => t.type === "multiplex").length,
+    singles: theatres.filter((t) => t.type === "single").length,
+    screens: theatres.reduce((n, t) => n + t.screen_count, 0),
+    centres: new Set(theatres.map((t) => t.centre)).size,
+    capacity: theatres.reduce((n, t) => n + (t.capacity || 0), 0),
+  };
+}
 
 export function inr(n: number): string {
   return new Intl.NumberFormat("en-IN").format(n);

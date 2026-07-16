@@ -19,6 +19,20 @@ const NAV = [
       <path d="M4 4h16v4H4V4Zm0 6h16v10H4V10Zm3 3v4m5-4v4m5-4v4" />
     ),
   },
+  {
+    href: "/admin/representatives",
+    label: "Representatives",
+    icon: (
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" />
+    ),
+  },
+  {
+    href: "/admin/roles",
+    label: "Roles",
+    icon: (
+      <path d="M12 2 4 5v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V5l-8-3Zm-2 9 2 2 4-4" />
+    ),
+  },
 ];
 
 export default function Sidebar() {
@@ -78,10 +92,22 @@ export default function Sidebar() {
           <span className="grid h-8 w-8 place-items-center rounded-full bg-white/10 text-xs font-semibold text-white">
             AD
           </span>
-          <div className="leading-tight">
+          <div className="min-w-0 flex-1 leading-tight">
             <p className="text-xs font-medium text-white">Admin</p>
-            <p className="text-[11px] text-neutral-500">admin@svf</p>
+            <p className="truncate text-[11px] text-neutral-500">admin@svf.in</p>
           </div>
+          <button
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              window.location.href = "/login";
+            }}
+            title="Sign out"
+            className="rounded-md p-1.5 text-neutral-400 hover:bg-white/10 hover:text-white"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
+          </button>
         </div>
       </div>
     </aside>

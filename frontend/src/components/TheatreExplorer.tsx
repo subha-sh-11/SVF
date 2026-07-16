@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { THEATRES, DISTRICTS, Theatre, inr } from "@/data/theatres";
+import { Theatre, DistrictSummary, districtsOf, inr } from "@/data/theatres";
 import { useReps, repMap } from "@/lib/reps";
 import { useAssignments } from "@/lib/assignments";
 import {
@@ -19,9 +19,12 @@ import AssignRepModal from "./AssignRepModal";
 type CentreNode = { name: string; theatres: Theatre[] };
 type DistrictNode = { name: string; total: number; centres: CentreNode[] };
 
-function buildTree(): DistrictNode[] {
-  return DISTRICTS.map((d) => {
-    const rows = THEATRES.filter((t) => t.district === d.name);
+function buildTree(
+  theatres: Theatre[],
+  districts: DistrictSummary[]
+): DistrictNode[] {
+  return districts.map((d) => {
+    const rows = theatres.filter((t) => t.district === d.name);
     const byCentre = new Map<string, Theatre[]>();
     for (const t of rows) {
       const arr = byCentre.get(t.centre) || [];
@@ -31,16 +34,24 @@ function buildTree(): DistrictNode[] {
     return {
       name: d.name,
       total: rows.length,
-      centres: [...byCentre.entries()].map(([name, theatres]) => ({
+      centres: [...byCentre.entries()].map(([name, list]) => ({
         name,
-        theatres,
+        theatres: list,
       })),
     };
   });
 }
 
-export default function TheatreExplorer() {
-  const tree = useMemo(buildTree, []);
+export default function TheatreExplorer({
+  theatres,
+}: {
+  theatres: Theatre[];
+}) {
+  const districts = useMemo(() => districtsOf(theatres), [theatres]);
+  const tree = useMemo(
+    () => buildTree(theatres, districts),
+    [theatres, districts]
+  );
   const assignments = useAssignments();
   const reps = useReps();
   const byId = useMemo(() => repMap(reps), [reps]);
@@ -58,7 +69,7 @@ export default function TheatreExplorer() {
 
   const q = query.trim().toLowerCase();
   const selected = selectedId
-    ? THEATRES.find((t) => t.id === selectedId) ?? null
+    ? theatres.find((t) => t.id === selectedId) ?? null
     : null;
 
   function toggle(set: Set<string>, key: string, setter: (s: Set<string>) => void) {
@@ -112,7 +123,7 @@ export default function TheatreExplorer() {
               : d.centres;
             if (q && districtCentres.length === 0) return null;
             const dOpen = openDistricts.has(d.name);
-            const assigned = THEATRES.filter(
+            const assigned = theatres.filter(
               (t) => t.district === d.name && assignments[t.id]
             ).length;
 

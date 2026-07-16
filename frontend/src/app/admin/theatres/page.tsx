@@ -1,6 +1,9 @@
 import TheatreExplorer from "@/components/TheatreExplorer";
+import { getTheatres } from "@/lib/theatres.server";
 
-export default function TheatresPage() {
+export default async function TheatresPage() {
+  const theatres = await getTheatres();
+
   return (
     <div className="space-y-6">
       <div>
@@ -12,7 +15,7 @@ export default function TheatresPage() {
         </p>
       </div>
 
-      <TheatreExplorer />
+      <TheatreExplorer theatres={theatres} />
     </div>
   );
 }
