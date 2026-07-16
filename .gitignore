@@ -1,0 +1,25 @@
+# Scratch data-extraction scripts (one-off, not part of the app)
+extract.py
+extract2.py
+extract3.py
+extract4.py
+dump_rows.py
+dump_fmt.py
+chk.py
+themesweep.py
+__pycache__/
+*.pyc
+
+# Source spreadsheet (not needed in the repo)
+*.xls
+*.xlsx
+
+# Generated / intermediate data dumps
+allrows.txt
+theatres.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
