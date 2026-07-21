@@ -5,7 +5,7 @@ import { Theatre } from "@/data/theatres";
 export async function getTheatres(): Promise<Theatre[]> {
   const { rows } = await pool.query(
     `SELECT id, sno, district, centre, theatre, format, type,
-            screen_count, capacity, hfc_total, screens
+            screen_count, capacity, hfc_total, terms, screens
        FROM theatres
        ORDER BY id`
   );
@@ -20,6 +20,7 @@ export async function getTheatres(): Promise<Theatre[]> {
     screen_count: r.screen_count,
     capacity: Number(r.capacity),
     hfc_total: Number(r.hfc_total), // BIGINT comes back as string
+    terms: r.terms ?? "",
     screens: r.screens, // JSONB is already parsed
   }));
 }

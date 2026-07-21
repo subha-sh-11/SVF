@@ -1,0 +1,1496 @@
+{
+ "theatres": [
+  {
+   "id": "1",
+   "name": "PRASAD MULTPLEX",
+   "location": "NTR GARDENS",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "1-s1",
+     "name": "PRASAD MULTPLEX SC - 1",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹290",
+       "seats": 364,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "1-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹290",
+       "seats": 364,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "1-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹290",
+       "seats": 390,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "1-s4",
+     "name": "SCREEN - 4",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹290",
+       "seats": 390,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "1-s5",
+     "name": "SCREEN - 5",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹290",
+       "seats": 224,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "2",
+   "name": "IMAX BIG SCREEN (PCX)",
+   "location": "NTR GARDENS",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "2-s1",
+     "name": "IMAX  BIG SCREEN (PCX)",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹290",
+       "seats": 629,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "3",
+   "name": "PVR CINEMAS",
+   "location": "PUNJAGUTTA",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "3-s1",
+     "name": "PVR CINEMAS SC - 1",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 255,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "3-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 17,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 217,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "3-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 141,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "3-s4",
+     "name": "SCREEN - 4",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 255,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "3-s5",
+     "name": "SCREEN - 5",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 416,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "4",
+   "name": "PVR FORUM MALL",
+   "location": "KUKATPALLY",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "4-s1",
+     "name": "PVR FORUM MALL  SC  -  1",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 12,
+       "price": 345
+      },
+      {
+       "category": "₹290",
+       "seats": 232,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "4-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 13,
+       "price": 345
+      },
+      {
+       "category": "₹290",
+       "seats": 244,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "4-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 12,
+       "price": 345
+      },
+      {
+       "category": "₹290",
+       "seats": 232,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "4-s4",
+     "name": "SCREEN - 4",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 9,
+       "price": 345
+      },
+      {
+       "category": "₹290",
+       "seats": 135,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "4-s5",
+     "name": "SCREEN - 5",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹408",
+       "seats": 108,
+       "price": 408
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "4-s6",
+     "name": "SCREEN - 6",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 13,
+       "price": 345
+      },
+      {
+       "category": "₹290",
+       "seats": 282,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "4-s7",
+     "name": "SCREEN - 7",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 13,
+       "price": 345
+      },
+      {
+       "category": "₹290",
+       "seats": 246,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "4-s8",
+     "name": "SCREEN - 8",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 12,
+       "price": 345
+      },
+      {
+       "category": "₹290",
+       "seats": 250,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "4-s9",
+     "name": "SCREEN - 9",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 13,
+       "price": 345
+      },
+      {
+       "category": "₹290",
+       "seats": 278,
+       "price": 290
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "5",
+   "name": "CINEMAX",
+   "location": "BANJARA HILLS",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "5-s1",
+     "name": "CINEMAX  SC - 1",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 52,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 429,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "5-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 22,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 228,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "5-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 22,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 248,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "6",
+   "name": "PVR INORBIT MALL",
+   "location": "MADHAPUR",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "6-s1",
+     "name": "PVR INORBIT MALL SC - 1",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 147,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 161,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 161,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s4",
+     "name": "SCREEN - 4",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 170,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s5",
+     "name": "SCREEN - 5",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 161,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s6",
+     "name": "SCREEN - 6",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 147,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s7",
+     "name": "SCREEN - 7",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹349",
+       "seats": 23,
+       "price": 349
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s8",
+     "name": "SCREEN - 8",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹408",
+       "seats": 104,
+       "price": 408
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s9",
+     "name": "SCREEN - 9",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹349",
+       "seats": 42,
+       "price": 349
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s10",
+     "name": "SCREEN - 10",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹349",
+       "seats": 42,
+       "price": 349
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "6-s11",
+     "name": "SCREEN - 11",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹349",
+       "seats": 16,
+       "price": 349
+      },
+      {
+       "category": "₹325",
+       "seats": 18,
+       "price": 325
+      },
+      {
+       "category": "₹325",
+       "seats": 176,
+       "price": 325
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "7",
+   "name": "PVR NEXT GALLERIA MALL",
+   "location": "PANJAGUTTA",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "7-s1",
+     "name": "PVR NEXT GALLERIA MALL SC - 1",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 10,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 193,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "7-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 145,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "7-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 54,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "7-s4",
+     "name": "SCREEN - 4",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 152,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "7-s5",
+     "name": "SCREEN - 5",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 9,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 181,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "7-s6",
+     "name": "SCREEN - 6",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 144,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "7-s7",
+     "name": "SCREEN - 7",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 170,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "7-s8",
+     "name": "SCREEN - 8",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 11,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 209,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "8",
+   "name": "PVR ICON HITECH",
+   "location": "MADHAPUR",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "8-s1",
+     "name": "PVR ICON HITECH SC - 1",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 11,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 179,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "8-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 143,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "8-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 140,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "8-s4",
+     "name": "SCREEN - 4",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 13,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 289,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "8-s5",
+     "name": "SCREEN - 5",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 13,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 152,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "9",
+   "name": "PVR IRRAM MANZIL",
+   "location": "IRRAM MANZIL",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "9-s1",
+     "name": "PVR IRRAM MANZIL SC - 1 4DX",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹408",
+       "seats": 96,
+       "price": 408
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "9-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 10,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 94,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "9-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 10,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 158,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "9-s4",
+     "name": "SCREEN - 4",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 8,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 132,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "9-s5",
+     "name": "SCREEN - 5",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 8,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 142,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "9-s6",
+     "name": "SCREEN - 6",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 18,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 264,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "9-s7",
+     "name": "SCREEN - 7",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 14,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 228,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "10",
+   "name": "PVR MUSARAMBAGH",
+   "location": "MUSARAMBAGH",
+   "city": "Hyderabad",
+   "screens": [
+    {
+     "id": "10-s1",
+     "name": "PVR MUSARAMBAGH SC - 1",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 160,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "10-s2",
+     "name": "SCREEN - 2",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 187,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "10-s3",
+     "name": "SCREEN - 3",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 117,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "10-s4",
+     "name": "SCREEN - 4",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 8,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 188,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "10-s5",
+     "name": "SCREEN - 5",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹245",
+       "seats": 150,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    },
+    {
+     "id": "10-s6",
+     "name": "SCREEN - 6",
+     "movieId": "ogm",
+     "plan": [
+      {
+       "category": "₹345",
+       "seats": 7,
+       "price": 345
+      },
+      {
+       "category": "₹245",
+       "seats": 168,
+       "price": 245
+      }
+     ],
+     "times": [
+      "Spl-1",
+      "Spl-2",
+      "Spl-3",
+      "Noon",
+      "Matinee",
+      "1st",
+      "2nd"
+     ]
+    }
+   ]
+  }
+ ],
+ "assignedIds": [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10"
+ ]
+}

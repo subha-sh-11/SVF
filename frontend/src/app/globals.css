@@ -55,14 +55,15 @@ html {
 
 /* ---------- Accent presets ---------- */
 :root,
+:root,
 [data-accent="amber"] {
   --brand-50: #eef4ec;
   --brand-100: #d8e7d2;
-  --brand-300: #8ebd82;
-  --brand-400: #5f9a53;
-  --brand-500: #417e37;
+  --brand-300: #86b979;
+  --brand-400: #5a9b4d;
+  --brand-500: #34682c;
   --brand-600: #34682c;
-  --brand-700: #295121;
+  --brand-700: #34682c;
 }
 [data-accent="indigo"] {
   --brand-50: #eef2ff;
@@ -113,6 +114,242 @@ body {
   background: var(--canvas);
   color: var(--text-body);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Hide jspreadsheet's native "+ new worksheet" tab — use the app's "+ Add day" */
+.jtabs-add {
+  display: none !important;
+}
+
+/* Day tabs are relocated (in JS) into a fixed slot below the toolbar, so they
+   stay visible while the sheet scrolls. Keep them laid out side-by-side (a row)
+   as they were before the move. */
+.jtabs-headers {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+/* each tab keeps its label on a single line, with comfortable spacing */
+.jtabs-headers > * {
+  white-space: nowrap;
+  flex: 0 0 auto;
+  width: auto !important;
+  padding: 4px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+/* highlight the day you're currently on */
+.jtabs-headers > .jtabs-selected {
+  background: var(--chip);
+  font-weight: 700;
+  color: var(--text-strong);
+}
+/* neutralise jSuites' underline indicator (the black bar) without hiding any
+   structural element — the gray pill already shows the active day */
+.jtabs-headers .jtabs-border {
+  background: transparent !important;
+  height: 0 !important;
+  border: 0 !important;
+}
+
+/* Per-day-tab close (×) — shown only on hover */
+.jtabs-headers > * {
+  position: relative;
+}
+.day-close {
+  display: none;
+  margin-left: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #94a3b8;
+}
+.jtabs-headers > *:hover .day-close {
+  display: inline;
+}
+.day-close:hover {
+  color: #e11d48;
+}
+
+/* In-header collapse chevron / pill for Rates & special shows */
+.spl-collapse {
+  cursor: pointer;
+  font-weight: 700;
+  user-select: none;
+  white-space: nowrap;
+  padding: 1px 5px;
+  border-radius: 5px;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+/* Rates & special shows — green text only, no background */
+.spl-collapse--rates,
+.spl-collapse--spl {
+  color: #417e37;
+}
+.spl-collapse--rates:hover,
+.spl-collapse--spl:hover {
+  color: #34682c;
+}
+/* Expand affordance sits above neighbours (no background fill) */
+.spl-collapse--pill {
+  position: relative;
+  z-index: 2;
+}
+
+/* Grouped (super) header row — bold; column-title row — lighter */
+.jss_content thead td,
+.jexcel thead td {
+  overflow: visible; /* so a collapsed pill in a narrow cell isn't clipped */
+}
+.jss_content thead tr:first-child td,
+.jexcel thead tr:first-child td {
+  font-weight: 700;
+}
+.jss_content thead tr:last-child td,
+.jexcel thead tr:last-child td {
+  font-weight: 500;
+}
+
+/* Hover card breaking down the H.F.A classes (price × seats) */
+.hfa-card {
+  position: fixed;
+  z-index: 60;
+  min-width: 220px;
+  max-width: 300px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-body);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  pointer-events: none;
+}
+.hfa-card h5 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.hfa-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.hfa-card th,
+.hfa-card td {
+  padding: 2px 4px;
+  text-align: right;
+  white-space: nowrap;
+}
+.hfa-card th:first-child,
+.hfa-card td:first-child {
+  text-align: left;
+}
+.hfa-card thead th {
+  color: var(--text-faint);
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+}
+.hfa-card tfoot td {
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+/* Perf: skip layout/paint for off-screen rows of the large (~1300-row) sheet.
+   contain-intrinsic-size reserves each row's height so the scrollbar stays
+   accurate. Keeps scrolling + reflow cheap without virtualizing the DOM. */
+.jss_content tbody tr,
+.jexcel tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 24px;
+}
+
+/* Stronger, higher-contrast cell text — the default muted grey looked faint
+   and clumsy on the beige sheet. Darken body cells + the row-number gutter. */
+.jss_content tbody td,
+.jexcel tbody td {
+  color: #1c2620; /* near-black, crisp on beige */
+}
+.jss_content tbody tr > td:first-child,
+.jexcel tbody tr > td:first-child {
+  color: #2b2f2c;
+  font-weight: 600; /* row-number gutter — readable, not ghostly */
+}
+[data-theme="dark"] .jss_content tbody td,
+[data-theme="dark"] .jexcel tbody td {
+  color: #eef2f8;
+}
+[data-theme="dark"] .jss_content tbody tr > td:first-child,
+[data-theme="dark"] .jexcel tbody tr > td:first-child {
+  color: #c7cfd9;
+}
+
+/* District band row — merged into a single full-width cell (via colSpan in JS).
+   Bold, prominent, easy to spot as a section separator. */
+.jss_content tbody tr.dist-row td,
+.jexcel tbody tr.dist-row td {
+  background: #eae0c4 !important; /* a touch deeper than the beige sheet */
+  border-top: 1px solid #cdbf98 !important;
+  border-bottom: 1px solid #cdbf98 !important;
+}
+.jss_content tbody tr.dist-row td:nth-child(2),
+.jexcel tbody tr.dist-row td:nth-child(2) {
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  letter-spacing: 0.04em;
+  color: #4a3f22 !important; /* warm dark, sits nicely on the band */
+  text-align: left !important;
+  padding-left: 10px !important;
+  white-space: nowrap;
+}
+[data-theme="dark"] .jss_content tbody tr.dist-row td,
+[data-theme="dark"] .jexcel tbody tr.dist-row td {
+  background: #232d3b !important;
+  border-top: 1px solid #33405280 !important;
+  border-bottom: 1px solid #33405280 !important;
+}
+[data-theme="dark"] .jss_content tbody tr.dist-row td:nth-child(2),
+[data-theme="dark"] .jexcel tbody tr.dist-row td:nth-child(2) {
+  color: #e6c98a !important;
+}
+
+/* Section grand-total row — red, like the OG cinema sheet */
+.jss_content tbody tr.total-row td,
+.jexcel tbody tr.total-row td {
+  color: #c81e1e !important;
+  font-weight: 700 !important;
+  background: #fdecec !important;
+  border-top: 2px solid #c81e1e !important;
+  border-bottom: 2px solid #c81e1e !important;
+}
+
+/* Light vertical divider between the major sheet sections */
+.jss_content td.sec-edge,
+.jexcel td.sec-edge {
+  border-right: 1px solid #c3c8d0 !important;
+}
+.jss_content thead td.sec-edge,
+.jexcel thead td.sec-edge {
+  border-right: 1px solid #a7adb8 !important;
+}
+/* header cell shows a subtle edit affordance */
+.jss_content thead td {
+  cursor: text;
+}
+
+/* Remove-× on a special-show group header — visible on hover */
+.spl-remove {
+  display: none;
+  margin-left: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #c0392b;
+}
+*:hover > .spl-remove {
+  display: inline;
 }
 
 ::-webkit-scrollbar {

@@ -22,6 +22,7 @@ export type Theatre = {
   screen_count: number;
   capacity: number;
   hfc_total: number;
+  terms?: string;
   screens: Screen[];
 };
 

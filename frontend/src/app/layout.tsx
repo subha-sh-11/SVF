@@ -10,9 +10,8 @@ const themeScript = `
 (function(){
   try {
     var t = localStorage.getItem('svf.theme') || 'light';
-    var a = localStorage.getItem('svf.accent') || 'amber';
     document.documentElement.setAttribute('data-theme', t);
-    document.documentElement.setAttribute('data-accent', a);
+    document.documentElement.setAttribute('data-accent', 'amber');
   } catch (e) {}
 })();
 `;

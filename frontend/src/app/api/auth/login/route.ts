@@ -1,37 +1,75 @@
 import { NextResponse } from "next/server";
+import { pool } from "@/lib/db";
 import {
   ADMIN_EMAIL,
   checkCredentials,
+  checkUserCredentials,
   signSession,
   SESSION_COOKIE,
   SESSION_MAX_AGE,
+  USER_EMAIL,
+  USER_SESSION_COOKIE,
 } from "@/lib/auth";
+import {
+  REP_SESSION_COOKIE,
+  REP_SESSION_MAX_AGE,
+  signRepSession,
+  verifyPassword,
+} from "@/lib/rep-auth";
+
+const cookieOpts = {
+  httpOnly: true as const,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+};
 
 export async function POST(req: Request) {
   let email = "";
   let password = "";
   try {
-    const body = await req.json();
-    email = String(body.email ?? "");
-    password = String(body.password ?? "");
+    const b = await req.json();
+    email = String(b.email ?? "");
+    password = String(b.password ?? "");
   } catch {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
-  if (!checkCredentials(email, password)) {
-    return NextResponse.json(
-      { error: "Invalid email or password" },
-      { status: 401 }
-    );
+  // 1) Admin
+  if (checkCredentials(email, password)) {
+    const res = NextResponse.json({ role: "admin", redirect: "/admin/theatres" });
+    res.cookies.set(SESSION_COOKIE, signSession(ADMIN_EMAIL), {
+      ...cookieOpts,
+      maxAge: SESSION_MAX_AGE,
+    });
+    return res;
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE, signSession(ADMIN_EMAIL), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_MAX_AGE,
-  });
-  return res;
+  // 2) User (movies viewer)
+  if (checkUserCredentials(email, password)) {
+    const res = NextResponse.json({ role: "user", redirect: "/movies" });
+    res.cookies.set(USER_SESSION_COOKIE, signSession(USER_EMAIL), {
+      ...cookieOpts,
+      maxAge: SESSION_MAX_AGE,
+    });
+    return res;
+  }
+
+  // 3) Representative (validated against the DB)
+  const em = email.trim().toLowerCase();
+  const { rows } = await pool.query(
+    `SELECT * FROM reps WHERE lower(email) = $1 AND status = 'approved' LIMIT 1`,
+    [em]
+  );
+  const rep = rows[0];
+  if (rep && verifyPassword(password, rep.password_hash)) {
+    const res = NextResponse.json({ role: "rep", redirect: "/rep" });
+    res.cookies.set(REP_SESSION_COOKIE, signRepSession(rep.id), {
+      ...cookieOpts,
+      maxAge: REP_SESSION_MAX_AGE,
+    });
+    return res;
+  }
+
+  return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
 }

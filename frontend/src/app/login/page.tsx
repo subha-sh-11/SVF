@@ -21,8 +21,15 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       if (res.ok) {
-        router.replace("/admin/theatres");
-        router.refresh();
+        const data = await res.json().catch(() => ({}));
+        const dest = data.redirect || "/admin/theatres";
+        if (data.role === "rep") {
+          // rep app is a separate SPA — full navigation so it boots cleanly
+          window.location.href = dest;
+        } else {
+          router.replace(dest);
+          router.refresh();
+        }
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.error || "Login failed");
@@ -48,13 +55,13 @@ export default function LoginPage() {
             <p className="text-base font-semibold text-strong">
               SVF Distribution
             </p>
-            <p className="text-xs text-faint">Nizam Territory — Admin</p>
+            <p className="text-xs text-faint">Nizam Territory</p>
           </div>
         </div>
 
         <h1 className="text-lg font-semibold text-strong">Sign in</h1>
         <p className="mb-5 mt-0.5 text-sm text-faint">
-          Enter your admin credentials to continue.
+          Enter your credentials to continue.
         </p>
 
         <form onSubmit={submit} className="space-y-3">
@@ -66,7 +73,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@svf.in"
+              placeholder="you@svf.in"
               autoComplete="username"
               className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-brand-400"
             />
