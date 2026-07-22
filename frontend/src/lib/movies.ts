@@ -9,53 +9,75 @@ export type Movie = {
   createdAt: number;
 };
 
-const KEY = "svf.movies.v1";
+// Movies are stored in the shared Postgres DB (via /api/movies) so every admin
+// user sees the same list. We keep a small in-memory cache + subscription so the
+// UI updates reactively, and refetch from the server to stay in sync.
 
-let cache: Movie[] | null = null;
+let cache: Movie[] = [];
+let loaded = false;
 const listeners = new Set<() => void>();
-const EMPTY: Movie[] = [];
 
-function load(): Movie[] {
-  if (cache) return cache;
-  if (typeof window === "undefined") return EMPTY;
-  try {
-    const raw = localStorage.getItem(KEY);
-    cache = raw ? (JSON.parse(raw) as Movie[]) : [];
-  } catch {
-    cache = [];
-  }
-  return cache!;
+function emit() {
+  listeners.forEach((l) => l());
 }
 
-function persist(next: Movie[]) {
-  cache = next;
-  if (typeof window !== "undefined") localStorage.setItem(KEY, JSON.stringify(next));
-  listeners.forEach((l) => l());
+export async function refreshMovies(): Promise<Movie[]> {
+  try {
+    const res = await fetch("/api/movies", { cache: "no-store" });
+    if (res.ok) {
+      cache = (await res.json()).movies ?? [];
+      loaded = true;
+      emit();
+    }
+  } catch {
+    /* keep last cache */
+  }
+  return cache;
 }
 
 function subscribe(cb: () => void) {
   listeners.add(cb);
+  if (!loaded) refreshMovies(); // lazy first load
   return () => listeners.delete(cb);
 }
 
+/** Reactive shared movies list (from the DB). Empty until the first fetch. */
 export function useMovies(): Movie[] {
-  return useSyncExternalStore(subscribe, load, () => EMPTY);
+  return useSyncExternalStore(
+    subscribe,
+    () => cache,
+    () => cache
+  );
 }
 
-function newId() {
-  return "mov-" + Math.random().toString(36).slice(2, 9);
+export async function addMovie(name: string, release: string): Promise<string> {
+  const res = await fetch("/api/movies", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, release }),
+  });
+  const data = await res.json().catch(() => ({}));
+  const movie: Movie | undefined = data.movie;
+  if (movie) {
+    cache = [movie, ...cache];
+    emit();
+    return movie.id;
+  }
+  await refreshMovies();
+  return "";
 }
 
-export function addMovie(name: string, release: string): string {
-  const id = newId();
-  persist([{ id, name, release, createdAt: Date.now() }, ...load()]);
-  return id;
+export async function deleteMovie(id: string): Promise<void> {
+  cache = cache.filter((m) => m.id !== id); // optimistic
+  emit();
+  try {
+    await fetch(`/api/movies/${id}`, { method: "DELETE" });
+  } finally {
+    refreshMovies();
+  }
 }
 
-export function deleteMovie(id: string) {
-  persist(load().filter((m) => m.id !== id));
-}
-
+/** Look up a movie already in the cache (call refreshMovies first if unsure). */
 export function getMovie(id: string): Movie | undefined {
-  return load().find((m) => m.id === id);
+  return cache.find((m) => m.id === id);
 }

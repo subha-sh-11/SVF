@@ -111,9 +111,49 @@ html {
 }
 
 body {
-  background: var(--canvas);
+  /* soft tinted backdrop instead of flat white */
+  background:
+    radial-gradient(1200px 600px at 100% -10%, var(--brand-50), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, var(--brand-50), transparent 55%),
+    var(--canvas);
+  background-attachment: fixed;
   color: var(--text-body);
   -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Movie sheet toolbar: cohesive, polished chrome ---------- */
+.movie-toolbar {
+  background-image: linear-gradient(180deg, var(--brand-50), var(--surface));
+  border-bottom: 1px solid var(--brand-300);
+  box-shadow: 0 2px 10px rgba(20, 40, 20, 0.06);
+}
+/* every toolbar button: soft card look + gentle lift on hover */
+.movie-toolbar button,
+.movie-toolbar select,
+.movie-toolbar a {
+  border-radius: 8px !important;
+  transition: transform 120ms ease, box-shadow 120ms ease,
+    background-color 120ms ease, border-color 120ms ease;
+}
+.movie-toolbar button:not(.bg-brand-600),
+.movie-toolbar select,
+.movie-toolbar a {
+  background-color: var(--surface);
+  box-shadow: 0 1px 2px rgba(20, 40, 20, 0.06);
+}
+.movie-toolbar button:hover,
+.movie-toolbar a:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(20, 40, 20, 0.12);
+}
+.movie-toolbar button:active,
+.movie-toolbar a:active {
+  transform: translateY(0);
+}
+/* primary (brand) buttons get a richer look */
+.movie-toolbar button.bg-brand-600 {
+  background-image: linear-gradient(180deg, var(--brand-500), var(--brand-600));
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--brand-600) 40%, transparent);
 }
 
 /* Hide jspreadsheet's native "+ new worksheet" tab — use the app's "+ Add day" */

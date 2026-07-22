@@ -4,9 +4,20 @@ import "jspreadsheet-ce/dist/jspreadsheet.css";
 import "jsuites/dist/jsuites.css";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { Theatre, Screen, inr } from "@/data/theatres";
-import { getMovie } from "@/lib/movies";
+import { getMovie, refreshMovies } from "@/lib/movies";
+// Static import (small, pure functions) so Fast Refresh always loads the latest
+// converter — a dynamically-imported chunk can be cached stale in the browser.
+import {
+  excelToUniverSnapshot,
+  parseThemePalette,
+  setThemePalette,
+} from "@/lib/xlsxToUniver";
+
+// Full Excel-like engine (ribbon + formatting) for uploaded .xlsx files.
+const UniverSheet = dynamic(() => import("./UniverSheet"), { ssr: false });
 
 type Cell = string | number;
 type Day = { name: string; data: Cell[][] };
@@ -398,6 +409,9 @@ export default function MovieSheet({
   const ref = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const tabsSlotRef = useRef<HTMLDivElement>(null); // fixed slot for the day tabs
+  const fileInputRef = useRef<HTMLInputElement>(null); // hidden Excel upload input
+  const appendInputRef = useRef<HTMLInputElement>(null); // append-import input
+  const [shareOpen, setShareOpen] = useState(false); // share dialog open
   const cardRef = useRef<HTMLDivElement>(null); // H.F.A class-breakdown hover card
   const cardRowRef = useRef<number | null>(null); // row currently shown in the card
   const cardPinnedRef = useRef(false); // card pinned open by a click
@@ -417,6 +431,30 @@ export default function MovieSheet({
   const applyingRef = useRef(false); // guard against recursive onchange
   const followRaf = useRef<number | null>(null); // rAF id for scroll-follow
   const enhanceRef = useRef<() => void>(() => {}); // latest per-day enhancer
+  // ── Server sync (shared sheet, auto-save + poll) ──
+  const serverVersionRef = useRef(0); // last version we've seen/written
+  const saveTimerRef = useRef<number | null>(null); // debounced save timer
+  const lastEditRef = useRef(0); // ts of last local edit (don't clobber via poll)
+  const pullingRef = useRef(false); // applying a server pull (suppress save)
+  const roleRef = useRef<"editor" | "viewer">("editor"); // access role
+  const [readOnly, setReadOnly] = useState(false);
+  // Every movie is a Univer spreadsheet now (the old OG Nizam sheet is retired).
+  const plainModeRef = useRef(true); // always Univer mode
+  const [plainMode, setPlainMode] = useState(true); // mirror for UI
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const univerSnapRef = useRef<any>(null); // current Univer workbook snapshot
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [univerSnap, setUniverSnap] = useState<any>(null); // snapshot to render
+  const [univerKey, setUniverKey] = useState(0); // remount Univer on external pull
+  const univerReadyRef = useRef(false); // a real snapshot is loaded (guard saves)
+  const [loading, setLoading] = useState(true); // loading the shared copy
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
+    "idle"
+  ); // save-status toast
+  const saveStateTimer = useRef<number | null>(null);
+  const [me, setMe] = useState<{ email: string | null; isAdmin?: boolean }>({
+    email: null,
+  }); // signed-in user
   const saveKey = `svf.moviesheet.${movieId}`;
 
   // Show-entry dialog (right-click a Show/Aud cell → add per-class audience).
@@ -492,22 +530,45 @@ export default function MovieSheet({
   // Sum the theatre's raw Show / Aud cells (these are plain numbers, so reading
   // them is reliable — unlike the Today formulas, which need processed=true).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function grossOfTheatre(ws: any, info: { rows: number[] }): number {
+  // Cheap raw numeric read of a cell.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function numAt(ws: any, x: number, y: number): number {
+    const raw = ws.getValueFromCoords(x, y);
+    if (raw === "" || raw == null) return 0;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }
+  // Read a cell's COMPUTED value (processed=true) — handles formula cells.
+  // Callers must batch these BEFORE writing any cells (writes dirty the sheet and
+  // make each subsequent processed read trigger a full recalc → freeze).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function computedNum(ws: any, x: number, y: number): number {
+    const disp = ws.getValueFromCoords(x, y, true);
+    const n = Number(String(disp ?? "").replace(/[₹,\s]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  // Gross / Audience for a theatre = its Today-Gross / Today-Audience cell (the
+  // authoritative SUM that's actually displayed). Falls back to a raw sum of the
+  // Show/Aud cells. Reads the computed cell, so batch calls before writes.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function grossOfTheatre(ws: any, info: { first: number; rows: number[] }): number {
     const nShows = showsFor(splCountRef.current).length;
-    let g = 0;
+    const g = computedNum(ws, BASE_LEN + nShows * 2, info.first - 1);
+    if (g > 0) return g;
+    let s = 0;
     for (const r of info.rows)
-      for (let k = 0; k < nShows; k++)
-        g += Number(ws.getValueFromCoords(BASE_LEN + 2 * k, r - 1)) || 0;
-    return g;
+      for (let k = 0; k < nShows; k++) s += numAt(ws, BASE_LEN + 2 * k, r - 1);
+    return s;
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function audOfTheatre(ws: any, info: { rows: number[] }): number {
+  function audOfTheatre(ws: any, info: { first: number; rows: number[] }): number {
     const nShows = showsFor(splCountRef.current).length;
-    let a = 0;
+    const a = computedNum(ws, BASE_LEN + nShows * 2 + 3, info.first - 1);
+    if (a > 0) return a;
+    let s = 0;
     for (const r of info.rows)
-      for (let k = 0; k < nShows; k++)
-        a += Number(ws.getValueFromCoords(BASE_LEN + 2 * k + 1, r - 1)) || 0;
-    return a;
+      for (let k = 0; k < nShows; k++) s += numAt(ws, BASE_LEN + 2 * k + 1, r - 1);
+    return s;
   }
 
   // ── Per-theatre fixed deduction (editable; hardcoded defaults from OG) ──
@@ -689,11 +750,19 @@ export default function MovieSheet({
     try {
       sheets.forEach((ws, si) => {
         const day = namesRef.current[si] ?? `Day ${si + 1}`;
-        for (const [tidStr, info] of Object.entries(theatreRows)) {
+        const entries = Object.entries(theatreRows).filter(
+          ([tidStr]) => !onlyTid || Number(tidStr) === onlyTid
+        );
+        // PHASE 1 — read every theatre's gross (computed cells) BEFORE writing
+        // anything, so the formula cache stays warm (one recalc, not one/theatre).
+        const grossMap: Record<number, number> = {};
+        for (const [tidStr, info] of entries)
+          grossMap[Number(tidStr)] = grossOfTheatre(ws, info);
+        // PHASE 2 — write Nett & Share.
+        for (const [tidStr, info] of entries) {
           const tid = Number(tidStr);
-          if (onlyTid && tid !== onlyTid) continue;
           const fr = info.first;
-          const gross = grossOfTheatre(ws, info);
+          const gross = grossMap[tid];
           const ov = overrides[`${day}|${tid}`];
           if (gross <= 0 && !ov) {
             ws.setValueFromCoords(todayIdx + 1, fr - 1, "", true);
@@ -743,14 +812,17 @@ export default function MovieSheet({
     const prevGuard = applyingRef.current;
     applyingRef.current = true;
     try {
-      for (const [tidStr, info] of Object.entries(theatreRows)) {
+      const entries = Object.entries(theatreRows).filter(
+        ([tidStr]) => !onlyTid || Number(tidStr) === onlyTid
+      );
+      // PHASE 1 — read every (theatre, day) Today value with NO writes, so the
+      // processed reads hit the warm formula cache (one recalc, not one each).
+      const today: Record<number, number[][]> = {}; // tid -> per-day [g,n,s,a]
+      for (const [tidStr, info] of entries) {
         const tid = Number(tidStr);
-        if (onlyTid && tid !== onlyTid) continue;
         const y = info.first - 1;
-        const cum = [0, 0, 0, 0]; // Gross, Nett, Share, Audience
-        sheets.forEach((ws, si) => {
+        today[tid] = sheets.map((ws, si) => {
           const day = namesRef.current[si] ?? `Day ${si + 1}`;
-          // compute this day's Today values in JS (formula cells can't be read raw)
           const gross = grossOfTheatre(ws, info);
           const aud = audOfTheatre(ws, info);
           let nett = 0;
@@ -773,9 +845,18 @@ export default function MovieSheet({
               }
             }
           }
-          const today = [gross, nett, share, aud];
+          return [gross, nett, share, aud];
+        });
+      }
+      // PHASE 2 — accumulate across days and write the GT cells.
+      for (const [tidStr, info] of entries) {
+        const tid = Number(tidStr);
+        const y = info.first - 1;
+        const cum = [0, 0, 0, 0];
+        sheets.forEach((ws, si) => {
+          const t = today[tid][si];
           for (let j = 0; j < 4; j++) {
-            cum[j] += today[j];
+            cum[j] += t[j];
             ws.setValueFromCoords(
               gtIdx + j,
               y,
@@ -791,6 +872,7 @@ export default function MovieSheet({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleCellChange(ws: any, x: number, y: number) {
+    if (plainModeRef.current) return; // uploaded plain grid → no OG recompute
     const nShows = showsFor(splCountRef.current).length;
     // Editing any inline pricing cell (RATE/AUD class pairs) recomputes the
     // row's House-full (H.F.C = Σ rate×aud, H.F.A = Σ aud) and re-prices shows.
@@ -809,19 +891,8 @@ export default function MovieSheet({
     }
     const inShows = x >= BASE_LEN && x < BASE_LEN + nShows * 2;
     if (inShows && (x - BASE_LEN) % 2 === 1) {
-      // an Aud cell changed → validate against capacity, then auto-fill Show
-      const cap = Number(ws.getValueFromCoords(5, y)) || 0; // H.F.A (capacity)
-      const audVal = ws.getValueFromCoords(x, y);
-      const aud = Number(audVal) || 0;
-      if (isFilled(audVal) && cap > 0 && aud > cap) {
-        alert(
-          `Audience ${aud} exceeds this screen's capacity of ${cap}. Please enter a value up to ${cap}.`
-        );
-        ws.setValueFromCoords(x, y, "", true); // clear invalid audience
-        ws.setValueFromCoords(x - 1, y, "", true); // clear its show
-      } else {
-        computeShow(ws, y, x - 1);
-      }
+      // an Aud cell changed → auto-fill its Show (no capacity validation)
+      computeShow(ws, y, x - 1);
     }
     const rowTheatre = buildRowTheatre();
     const tid = rowTheatre[y + 1];
@@ -974,18 +1045,60 @@ export default function MovieSheet({
   }
 
   function saveDays(days: Day[]) {
-    localStorage.setItem(
-      saveKey,
-      JSON.stringify({ v: SHEET_VERSION, splCount: splCountRef.current, days })
-    );
+    // For uploaded (Univer) sheets, the snapshot can be many MB — too big for
+    // localStorage's ~5MB quota. The SERVER (Postgres) is the source of truth
+    // for those; localStorage only records the flag. Wrapped so a quota error
+    // can never block an upload.
+    try {
+      const payload = plainModeRef.current
+        ? {
+            v: SHEET_VERSION,
+            splCount: splCountRef.current,
+            plain: true,
+            univer: univerSnapRef.current, // deduped → usually fits
+          }
+        : {
+            v: SHEET_VERSION,
+            splCount: splCountRef.current,
+            days,
+            plain: false,
+          };
+      localStorage.setItem(saveKey, JSON.stringify(payload));
+    } catch {
+      // Snapshot too big for localStorage → keep just the flag; the SERVER copy
+      // (no size limit) still persists via serverSave() and restores on reload.
+      try {
+        localStorage.setItem(
+          saveKey,
+          JSON.stringify({ v: SHEET_VERSION, splCount: splCountRef.current, plain: true })
+        );
+      } catch {}
+    }
   }
 
-  // Returns { splCount, days }; rebuilds fresh for old/legacy formats.
-  function loadSaved(): { splCount: number; days: Day[] } {
+  // Returns { splCount, days, plain, univer }; rebuilds fresh for legacy formats.
+  function loadSaved(): {
+    splCount: number;
+    days: Day[];
+    plain: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    univer?: any;
+  } {
     try {
       const raw = localStorage.getItem(saveKey);
       if (raw) {
         const parsed = JSON.parse(raw);
+        // Uploaded (plain / Univer) sheet — the big snapshot lives on the server;
+        // localStorage only flags it. serverLoad() fills the snapshot on mount.
+        if (parsed?.plain) {
+          return {
+            splCount:
+              typeof parsed.splCount === "number" ? parsed.splCount : DEFAULT_SPL,
+            days: [],
+            plain: true,
+            univer: parsed.univer, // usually undefined; server provides it
+          };
+        }
         if (
           parsed &&
           parsed.v === SHEET_VERSION &&
@@ -994,13 +1107,14 @@ export default function MovieSheet({
         ) {
           const sc =
             typeof parsed.splCount === "number" ? parsed.splCount : DEFAULT_SPL;
-          return { splCount: sc, days: parsed.days as Day[] };
+          return { splCount: sc, days: parsed.days as Day[], plain: false };
         }
       }
     } catch {}
     return {
       splCount: DEFAULT_SPL,
       days: [{ name: "Day 1", data: buildData(theatres, DEFAULT_SPL) }],
+      plain: false,
     };
   }
 
@@ -1008,6 +1122,223 @@ export default function MovieSheet({
     try {
       saveDays(currentDaysForSave());
     } catch {}
+    if (!pullingRef.current) {
+      lastEditRef.current = Date.now();
+      serverSave(); // debounced push to the shared server copy
+    }
+  }
+
+  // ── Shared-sheet server sync ──
+  // The full editable state (days + side-stores) as one JSON blob.
+  function fullBlob() {
+    const read = (k: string) => {
+      try {
+        return JSON.parse(localStorage.getItem(k) || "null");
+      } catch {
+        return null;
+      }
+    };
+    return {
+      v: SHEET_VERSION,
+      splCount: splCountRef.current,
+      plain: plainModeRef.current,
+      univer: plainModeRef.current ? univerSnapRef.current : undefined,
+      days: plainModeRef.current ? [] : currentDaysForSave(),
+      deduction: read(`svf.deduction.${movieId}`),
+      nettoverride: read(`svf.nettoverride.${movieId}`),
+      showentry: read(`svf.showentry.${movieId}`),
+    };
+  }
+  // Hydrate localStorage from a server blob, then re-render the sheet from it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // Clean up a Univer snapshot loaded from an OLDER converter: any cell value
+  // that got stringified to "[object Object]" is reset to 0 so stale saved
+  // copies display correctly without needing a re-upload.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function sanitizeUniver(snap: any): any {
+    try {
+      const sheets = snap?.sheets;
+      if (!sheets) return snap;
+      for (const sid of Object.keys(sheets)) {
+        const cd = sheets[sid]?.cellData;
+        if (!cd) continue;
+        for (const r of Object.keys(cd)) {
+          const row = cd[r];
+          for (const c of Object.keys(row)) {
+            const cell = row[c];
+            if (cell && cell.v === "[object Object]") cell.v = 0;
+            if (cell && typeof cell.v === "object") cell.v = 0;
+          }
+        }
+      }
+    } catch {}
+    return snap;
+  }
+
+  function applyBlob(blob: any) {
+    if (!blob) return;
+    // Uploaded Excel (Univer) copy — swap the workbook snapshot & remount Univer.
+    if (blob.plain && blob.univer) {
+      blob.univer = sanitizeUniver(blob.univer);
+      pullingRef.current = true;
+      plainModeRef.current = true;
+      setPlainMode(true);
+      univerSnapRef.current = blob.univer;
+      univerReadyRef.current = true;
+      setUniverSnap(blob.univer);
+      setUniverKey((k) => k + 1);
+      try {
+        saveDays([]);
+      } catch {}
+      window.setTimeout(() => (pullingRef.current = false), 150);
+      return;
+    }
+    if (!Array.isArray(blob.days)) return;
+    pullingRef.current = true;
+    try {
+      plainModeRef.current = !!blob.plain;
+      setPlainMode(!!blob.plain);
+      localStorage.setItem(
+        saveKey,
+        JSON.stringify({
+          v: blob.v ?? SHEET_VERSION,
+          splCount: blob.splCount ?? DEFAULT_SPL,
+          days: blob.days,
+          plain: !!blob.plain,
+        })
+      );
+      if (blob.deduction)
+        localStorage.setItem(`svf.deduction.${movieId}`, JSON.stringify(blob.deduction));
+      if (blob.nettoverride)
+        localStorage.setItem(`svf.nettoverride.${movieId}`, JSON.stringify(blob.nettoverride));
+      if (blob.showentry)
+        localStorage.setItem(`svf.showentry.${movieId}`, JSON.stringify(blob.showentry));
+      const saved = loadSaved();
+      setSpl(saved.splCount);
+      renderSheet(saved.days);
+      window.setTimeout(() => {
+        if (!plainModeRef.current) {
+          syncTerms();
+          restoreShowEntries();
+          recomputeNett();
+          recomputeGT();
+        }
+        pullingRef.current = false;
+      }, 150);
+    } catch {
+      pullingRef.current = false;
+    }
+  }
+  // ── gzip compression (the uploaded snapshot can be ~10MB → too big to send
+  // raw). Compress to base64 before saving; decompress on load. ──
+  function bytesToB64(bytes: Uint8Array): string {
+    let bin = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk)
+      bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    return btoa(bin);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function compress(obj: any): Promise<any> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const CS = (globalThis as any).CompressionStream;
+      if (!CS) return obj; // fallback: send raw
+      const stream = new Blob([JSON.stringify(obj)])
+        .stream()
+        .pipeThrough(new CS("gzip"));
+      const buf = await new Response(stream).arrayBuffer();
+      return { __gz: bytesToB64(new Uint8Array(buf)) };
+    } catch {
+      return obj;
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function decompress(data: any): Promise<any> {
+    if (!data || !data.__gz) return data;
+    try {
+      // Fast native base64→bytes via a data: URL (avoids slow per-char decode).
+      const bytes = await (
+        await fetch("data:application/octet-stream;base64," + data.__gz)
+      ).arrayBuffer();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const DS = (globalThis as any).DecompressionStream;
+      const stream = new Blob([bytes]).stream().pipeThrough(new DS("gzip"));
+      return JSON.parse(await new Response(stream).text());
+    } catch {
+      return null;
+    }
+  }
+
+  // Save-status toast helpers.
+  function markSaving() {
+    setSaveState("saving");
+    if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
+  }
+  function markSaved() {
+    setSaveState("saved");
+    if (saveStateTimer.current) clearTimeout(saveStateTimer.current);
+    saveStateTimer.current = window.setTimeout(() => setSaveState("idle"), 2000);
+  }
+
+  // Debounced save of the whole blob to the server (last-write-wins).
+  function serverSave() {
+    if (roleRef.current !== "editor") return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(async () => {
+      markSaving();
+      try {
+        const res = await fetch(`/api/movies/${movieId}/sheet`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: await compress(fullBlob()) }),
+        });
+        if (res.ok) {
+          serverVersionRef.current = (await res.json()).version ?? 0;
+          markSaved();
+        } else setSaveState("idle");
+      } catch {
+        setSaveState("idle");
+      }
+    }, 1200);
+  }
+  // Force an immediate save (Ctrl+S / Enter-after-edit) — bypass the debounce.
+  async function flushSave() {
+    if (roleRef.current !== "editor") return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    markSaving();
+    try {
+      const res = await fetch(`/api/movies/${movieId}/sheet`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: await compress(fullBlob()) }),
+      });
+      if (res.ok) {
+        serverVersionRef.current = (await res.json()).version ?? 0;
+        markSaved();
+      } else setSaveState("idle");
+    } catch {
+      setSaveState("idle");
+    }
+  }
+  // Load the shared copy from the server. Returns true if applied.
+  async function serverLoad(): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/movies/${movieId}/sheet`, { cache: "no-store" });
+      if (!res.ok) return false;
+      const j = await res.json();
+      roleRef.current = j.role === "viewer" ? "viewer" : "editor";
+      setReadOnly(j.role === "viewer");
+      serverVersionRef.current = j.version ?? 0;
+      const data = await decompress(j.data);
+      // Only the Univer spreadsheet is used now. Legacy OG-only saves (days,
+      // no univer) are ignored → the movie opens as a blank Univer sheet.
+      if (data && data.univer) {
+        applyBlob(data);
+        return true;
+      }
+    } catch {}
+    return false;
   }
 
   function renderSheet(
@@ -1023,6 +1354,7 @@ export default function MovieSheet({
     const termsHidden = !showTermsRef.current;
     const ratesHidden = ratesOverride ?? ratesHiddenRef.current;
     const sc = splCountRef.current;
+    const plain = plainModeRef.current; // uploaded Excel → plain generic grid
     // preserve scroll position across the rebuild (so collapse doesn't jump to top)
     const scroller = el.parentElement;
     const savedTop = scroller?.scrollTop ?? 0;
@@ -1035,26 +1367,51 @@ export default function MovieSheet({
     const instance = jspreadsheet(el, {
       tabs: true,
       allowExport: false, // disable built-in Ctrl+S CSV download
-      worksheets: days.map((d) => ({
-        data: d.data,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        columns: columnsFor(sc) as any,
-        worksheetName: d.name,
-        minDimensions: [ncolsFor(sc), 1],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        nestedHeaders: nestedHeadersFor(sc, hidden, termsHidden, ratesHidden) as any,
-        editable: true,
-        columnResize: true,
-        rowResize: true,
-        columnSorting: false, // so double-click renames the header instead of sorting
-        allowInsertColumn: true,
-        allowInsertRow: true,
-        allowManualInsertColumn: true,
-        allowRenameColumn: true,
-        // The surrounding container scrolls (both axes); let the table render at
-        // its natural size so horizontal + vertical scrolling always works.
-        tableOverflow: false,
-      })),
+      worksheets: days.map((d) => {
+        if (plain) {
+          // Uploaded Excel: show it faithfully — one generic column per data
+          // column, no OG nested headers / fixed layout.
+          const ncols = Math.max(
+            1,
+            d.data.reduce((m, r) => Math.max(m, r.length), 1)
+          );
+          return {
+            data: d.data,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            columns: Array.from({ length: ncols }, () => ({ width: 120 })) as any,
+            worksheetName: d.name,
+            minDimensions: [ncols, Math.max(d.data.length, 1)],
+            editable: true,
+            columnResize: true,
+            rowResize: true,
+            columnSorting: false,
+            allowInsertColumn: true,
+            allowInsertRow: true,
+            allowManualInsertColumn: true,
+            tableOverflow: false,
+          };
+        }
+        return {
+          data: d.data,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          columns: columnsFor(sc) as any,
+          worksheetName: d.name,
+          minDimensions: [ncolsFor(sc), 1],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          nestedHeaders: nestedHeadersFor(sc, hidden, termsHidden, ratesHidden) as any,
+          editable: true,
+          columnResize: true,
+          rowResize: true,
+          columnSorting: false, // so double-click renames the header instead of sorting
+          allowInsertColumn: true,
+          allowInsertRow: true,
+          allowManualInsertColumn: true,
+          allowRenameColumn: true,
+          // The surrounding container scrolls (both axes); let the table render at
+          // its natural size so horizontal + vertical scrolling always works.
+          tableOverflow: false,
+        };
+      }),
       // Right-click a Show/Aud cell → add an "Add show entry…" option that
       // opens the per-class audience dialog.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1141,13 +1498,14 @@ export default function MovieSheet({
     // Hide columns SYNCHRONOUSLY (before the browser paints) so the grouped
     // header — built assuming these are hidden — always lines up. Doing this in
     // a delayed timeout caused a visible misalignment flash (esp. Terms).
-    for (const ws of sheetsRef.current) {
-      try {
-        if (hidden) ws.hideColumn(splColIndexes(splCountRef.current));
-        if (termsHidden) ws.hideColumn(TERMS_GROUP_COLS);
-        if (ratesHidden) ws.hideColumn(PRICING_COL_INDEXES);
-      } catch {}
-    }
+    if (!plain)
+      for (const ws of sheetsRef.current) {
+        try {
+          if (hidden) ws.hideColumn(splColIndexes(splCountRef.current));
+          if (termsHidden) ws.hideColumn(TERMS_GROUP_COLS);
+          if (ratesHidden) ws.hideColumn(PRICING_COL_INDEXES);
+        } catch {}
+      }
     // Move the fresh tab bar into the fixed slot immediately (synchronously),
     // so there's never a window where an old + new bar both exist.
     pinTabs();
@@ -1157,8 +1515,16 @@ export default function MovieSheet({
       scroller.scrollLeft = savedLeft;
     }
     setTimeout(() => {
-      if (filter !== "all") applyFilterTo(sheetsRef.current, filter);
       pinTabs();
+      // Uploaded plain grid: no OG headers/formulas/styling — just show it.
+      if (plain) {
+        if (scroller) {
+          scroller.scrollTop = savedTop;
+          scroller.scrollLeft = savedLeft;
+        }
+        return;
+      }
+      if (filter !== "all") applyFilterTo(sheetsRef.current, filter);
       // Apply the per-day styling + collapse chevrons to EVERY worksheet (all
       // existing days and any newly added day), not just the active one, so
       // every tab — including brand-new days — looks & behaves identical.
@@ -1714,12 +2080,6 @@ export default function MovieSheet({
       (n, r) => n + (Number(r.price) || 0) * (Number(r.aud) || 0),
       0
     );
-    if (entry.cap > 0 && totalAud > entry.cap) {
-      alert(
-        `Total audience ${totalAud} exceeds this screen's capacity of ${entry.cap}.`
-      );
-      return;
-    }
     applyingRef.current = true;
     try {
       ws.setValueFromCoords(entry.audCol, entry.y, totalAud || "", true);
@@ -1747,22 +2107,57 @@ export default function MovieSheet({
       const jspreadsheet = (await import("jspreadsheet-ce")).default;
       if (destroyed) return;
       jssRef.current = jspreadsheet;
+      // Every movie is a Univer spreadsheet. Load its saved snapshot if any;
+      // otherwise it stays a blank sheet until the user types or uploads Excel.
+      plainModeRef.current = true;
+      setPlainMode(true);
       const saved = loadSaved();
-      setSpl(saved.splCount);
-      renderSheet(saved.days);
-      // Refresh stale default Terms, restore saved entries, re-run Share/Nett/GT.
-      setTimeout(() => {
+      if (saved.univer) {
+        const clean = sanitizeUniver(saved.univer);
+        univerSnapRef.current = clean;
+        univerReadyRef.current = true;
+        setUniverSnap(clean);
+        setUniverKey((k) => k + 1);
+      }
+      // Pull the SHARED server copy; then allow saving (blank or loaded).
+      setTimeout(async () => {
         if (destroyed) return;
-        syncTerms();
-        restoreShowEntries();
-        recomputeNett();
-        recomputeGT();
-      }, 120);
-      // Auto-fill from representative submissions once the sheet is ready.
-      setTimeout(() => {
-        if (!destroyed) pullRepData(true);
-      }, 400);
+        await serverLoad();
+        univerReadyRef.current = true; // edits (even on a blank sheet) now save
+        setLoading(false);
+      }, 300);
+      // Safety: never spin forever if the network hangs.
+      setTimeout(() => !destroyed && setLoading(false), 6000);
     })();
+
+    // Poll the shared copy; pull in others' edits (last-write-wins). Guarded so
+    // it can never repeatedly rebuild the sheet: skip while hidden, while a pull
+    // is in flight, and right after a local edit; bump the version BEFORE
+    // applying so a slow apply can't re-trigger itself.
+    const pollIv = setInterval(async () => {
+      if (destroyed || document.hidden) return;
+      if (pullingRef.current) return;
+      if (Date.now() - lastEditRef.current < 3000) return;
+      try {
+        const res = await fetch(`/api/movies/${movieId}/sheet?meta=1`, {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const j = await res.json();
+        if ((j.version ?? 0) > serverVersionRef.current) {
+          serverVersionRef.current = j.version ?? 0; // claim it first
+          pullingRef.current = true;
+          const full = await (
+            await fetch(`/api/movies/${movieId}/sheet`, { cache: "no-store" })
+          ).json();
+          const fdata = await decompress(full.data);
+          if (fdata && fdata.univer) applyBlob(fdata);
+          else pullingRef.current = false;
+        }
+      } catch {
+        pullingRef.current = false;
+      }
+    }, 4000);
 
     // Hover the H.F.A cell (logical column 5) → show the class breakdown card.
     // Click it → pin the card open until you click elsewhere.
@@ -1806,8 +2201,23 @@ export default function MovieSheet({
     el?.addEventListener("mouseleave", onLeave);
     el?.addEventListener("click", onClick);
 
+    // Ctrl+S / Cmd+S → save immediately to the DB (works in both sheet modes).
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) {
+        e.preventDefault();
+        if (plainModeRef.current) flushSave();
+        else {
+          persist();
+          flushSave();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+
     return () => {
       destroyed = true;
+      clearInterval(pollIv);
+      window.removeEventListener("keydown", onKey, true);
       el?.removeEventListener("mousemove", onOver);
       el?.removeEventListener("mouseleave", onLeave);
       el?.removeEventListener("click", onClick);
@@ -2107,22 +2517,52 @@ export default function MovieSheet({
   function resetSheet() {
     if (
       !confirm(
-        "Reset this movie back to a single Day 1 with the original data? All days and edits will be lost."
+        "Clear this sheet to a blank spreadsheet? All current content will be lost."
       )
     )
       return;
-    const days: Day[] = [{ name: "Day 1", data: buildData(theatres, splCountRef.current) }];
-    saveDays(days);
-    renderSheet(days);
+    // Clear to a blank spreadsheet.
+    plainModeRef.current = true;
+    setPlainMode(true);
+    const blank = {
+      id: "wb-" + Math.random().toString(36).slice(2),
+      sheetOrder: ["s1"],
+      sheets: {
+        s1: { id: "s1", name: "Sheet1", cellData: {}, rowCount: 500, columnCount: 52 },
+      },
+      styles: {},
+      resources: [],
+    };
+    univerSnapRef.current = blank;
+    univerReadyRef.current = true;
+    setUniverSnap(blank);
+    setUniverKey((k) => k + 1);
+    saveDays([]);
+    lastEditRef.current = Date.now();
+    serverSave();
   }
 
-  // Read the movie name after mount (localStorage is client-only) to avoid
-  // a server/client hydration mismatch.
+  // Resolve the movie name from the shared DB list (works on a direct deep-link
+  // load where the in-memory cache is still empty).
   const [movieName, setMovieName] = useState("Movie");
   useEffect(() => {
     const m = getMovie(movieId);
-    if (m) setMovieName(m.name);
+    if (m) {
+      setMovieName(m.name);
+      return;
+    }
+    refreshMovies().then((list) => {
+      const found = list.find((x) => x.id === movieId);
+      if (found) setMovieName(found.name);
+    });
   }, [movieId]);
+
+  useEffect(() => {
+    fetch("/api/whoami", { cache: "no-store" })
+      .then((r) => r.json())
+      .then(setMe)
+      .catch(() => {});
+  }, []);
 
   async function exportExcel() {
     const XLSX = await import("xlsx");
@@ -2134,6 +2574,132 @@ export default function MovieSheet({
       XLSX.utils.book_append_sheet(wb, sheet, sanitizeSheetName(d.name));
     });
     XLSX.writeFile(wb, `${movieName}.xlsx`);
+  }
+
+  // Upload an .xlsx → parse WITH styling (ExcelJS) → render faithfully in Univer.
+  async function importExcel(file: File) {
+    if (roleRef.current !== "editor") {
+      alert("You have view-only access to this movie.");
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ExcelJSmod: any = await import("exceljs");
+      const ExcelJS = ExcelJSmod.default ?? ExcelJSmod;
+      const buf = await file.arrayBuffer();
+      // Read the file's real theme palette so fills/fonts match exactly.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const JSZipMod: any = await import("jszip");
+        const JSZip = JSZipMod.default ?? JSZipMod;
+        const zip = await JSZip.loadAsync(buf);
+        const themeXml = await zip.file("xl/theme/theme1.xml")?.async("string");
+        if (themeXml) setThemePalette(parseThemePalette(themeXml));
+      } catch {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wb: any = new ExcelJS.Workbook();
+      await wb.xlsx.load(buf);
+      const snap = excelToUniverSnapshot(wb, movieName || "Uploaded");
+      // Switch into full-Excel (Univer) mode and render the uploaded file.
+      plainModeRef.current = true;
+      setPlainMode(true);
+      univerSnapRef.current = snap;
+      univerReadyRef.current = true;
+      setUniverSnap(snap);
+      setUniverKey((k) => k + 1);
+      saveDays(currentDaysForSave()); // persist plain flag + snapshot (localStorage)
+      lastEditRef.current = Date.now();
+      serverSave();
+    } catch (e) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msg = (e as any)?.message || String(e);
+      alert(
+        "Could not read that file: " +
+          msg +
+          "\n\nPlease upload a valid .xlsx file (.xls / .csv are not supported)."
+      );
+    }
+  }
+
+  // Univer reported an edit → keep the snapshot and push to the shared server copy.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function onUniverChange(snap: any) {
+    if (roleRef.current !== "editor") return;
+    // Don't let the initial EMPTY workbook (before the real snapshot loads)
+    // overwrite the saved data.
+    if (!univerReadyRef.current) return;
+    univerSnapRef.current = snap;
+    lastEditRef.current = Date.now();
+    serverSave();
+  }
+
+  // Import a local Excel INTO the current workbook — its sheets are appended as
+  // new tabs so the user can keep working (not a replace).
+  async function appendExcel(file: File) {
+    if (roleRef.current !== "editor") {
+      alert("You have view-only access to this movie.");
+      return;
+    }
+    if (!plainModeRef.current || !univerSnapRef.current) {
+      // Not in Excel mode yet → first upload just loads it.
+      importExcel(file);
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ExcelJSmod: any = await import("exceljs");
+      const ExcelJS = ExcelJSmod.default ?? ExcelJSmod;
+      const buf = await file.arrayBuffer();
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const JSZipMod: any = await import("jszip");
+        const JSZip = JSZipMod.default ?? JSZipMod;
+        const zip = await JSZip.loadAsync(buf);
+        const themeXml = await zip.file("xl/theme/theme1.xml")?.async("string");
+        if (themeXml) setThemePalette(parseThemePalette(themeXml));
+      } catch {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wb: any = new ExcelJS.Workbook();
+      await wb.xlsx.load(buf);
+      const incoming = excelToUniverSnapshot(wb, file.name);
+      // Merge incoming sheets into the current workbook snapshot (be tolerant of
+      // a live snapshot that lacks/renames sheetOrder).
+      const cur = JSON.parse(JSON.stringify(univerSnapRef.current));
+      cur.sheets = cur.sheets || {};
+      if (!Array.isArray(cur.sheetOrder))
+        cur.sheetOrder = Object.keys(cur.sheets);
+      const names = new Set<string>(
+        cur.sheetOrder.map((id: string) => cur.sheets[id]?.name)
+      );
+      let seq = 0;
+      for (const sid of incoming.sheetOrder) {
+        const sheet = incoming.sheets[sid];
+        const newId = `imp-${Date.now().toString(36)}-${seq++}`;
+        sheet.id = newId;
+        let nm = sheet.name || "Sheet";
+        let n = 1;
+        while (names.has(nm)) nm = `${sheet.name} (${n++})`;
+        names.add(nm);
+        sheet.name = nm;
+        cur.sheets[newId] = sheet;
+        cur.sheetOrder.push(newId);
+      }
+      univerSnapRef.current = cur;
+      univerReadyRef.current = true;
+      setUniverSnap(cur);
+      setUniverKey((k) => k + 1);
+      saveDays(currentDaysForSave());
+      lastEditRef.current = Date.now();
+      serverSave();
+    } catch (e) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msg = (e as any)?.message || String(e);
+      alert(
+        "Could not import that file: " +
+          msg +
+          "\n\n(Only .xlsx files are supported — .xls/.csv won't work for import.)"
+      );
+    }
   }
 
   async function exportPDF() {
@@ -2158,25 +2724,62 @@ export default function MovieSheet({
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-canvas">
+      {/* Save-status toast (Ctrl+S / auto-save) */}
+      {saveState !== "idle" && (
+        <div
+          className="fixed left-5 top-5 z-[200] flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-white shadow-lg"
+          style={{
+            backgroundColor:
+              saveState === "saving" ? "#6b7280" : "var(--brand-600)",
+            transition: "opacity 200ms ease",
+          }}
+        >
+          {saveState === "saving" ? (
+            <>
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              Saving…
+            </>
+          ) : (
+            <>✓ Saved</>
+          )}
+        </div>
+      )}
       <div
         ref={headerRef}
-        className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-line bg-surface px-6 py-3"
+        className="movie-toolbar flex shrink-0 flex-wrap items-center justify-between gap-2 px-6 py-3"
       >
         <div className="flex items-center gap-3">
           <Link
             href="/movies"
-            className="rounded-md border border-line px-2.5 py-1.5 text-xs font-medium text-body hover:bg-chip"
+            className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-body hover:bg-chip"
           >
             ← Movies
           </Link>
           <div>
-            <h1 className="text-base font-semibold text-strong">{movieName}</h1>
+            <h1
+              className="text-base font-bold"
+              style={{ color: "var(--brand-600)" }}
+            >
+              {movieName}
+            </h1>
             <p className="text-[11px] text-faint">
-              Nizam Centers List · {theatres.length} theatres · one sheet per day
+              Spreadsheet · shared &amp; auto-saved
             </p>
           </div>
+          {me.email && (
+            <span
+              title={`Signed in as ${me.email}`}
+              className="ml-1 rounded-full border border-brand-300 bg-surface px-2.5 py-1 text-[11px] font-semibold"
+              style={{ color: "var(--brand-700)" }}
+            >
+              {me.isAdmin ? "👑 " : "👤 "}
+              {me.email}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {!plainMode && (
+          <>
           <button
             onClick={addDay}
             className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
@@ -2245,18 +2848,77 @@ export default function MovieSheet({
             ⟳ Pull rep data
           </button>
           <span className="mx-1 h-4 w-px bg-line" />
+          </>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) importExcel(f);
+              e.target.value = "";
+            }}
+          />
           <button
-            onClick={exportExcel}
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload an Excel/CSV file (replaces the current view)"
             className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
           >
-            Export Excel
+            ⬆ Upload Excel
           </button>
+          {plainMode && (
+            <>
+              <input
+                ref={appendInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) appendExcel(f);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                onClick={() => appendInputRef.current?.click()}
+                title="Import a local Excel and add its sheets to this workbook"
+                className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
+              >
+                ➕ Import into workbook
+              </button>
+            </>
+          )}
           <button
-            onClick={exportPDF}
+            onClick={() => setShareOpen(true)}
+            title="Share this movie with others"
             className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
           >
-            Export PDF
+            🔗 Share
           </button>
+          {readOnly && (
+            <span className="rounded bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
+              View only
+            </span>
+          )}
+          <span className="mx-1 h-4 w-px bg-line" />
+          {!plainMode && (
+            <>
+              <button
+                onClick={exportExcel}
+                className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
+              >
+                Export Excel
+              </button>
+              <button
+                onClick={exportPDF}
+                className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
+              >
+                Export PDF
+              </button>
+            </>
+          )}
           <button
             onClick={resetSheet}
             className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
@@ -2277,9 +2939,27 @@ export default function MovieSheet({
       {/* sheet + side panels live in a horizontal row so panels sit BESIDE the
           sheet (below the toolbar) and never cover the header or its scrollbar */}
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
-          <div ref={ref} />
-        </div>
+        {plainMode ? (
+          <div className="relative min-h-0 flex-1">
+            {loading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-canvas/80">
+                <div className="flex items-center gap-3 text-sm text-faint">
+                  <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-brand-300 border-t-brand-600" />
+                  Loading spreadsheet…
+                </div>
+              </div>
+            )}
+            <UniverSheet
+              key={univerKey}
+              snapshot={univerSnap}
+              onChange={onUniverChange}
+            />
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
+            <div ref={ref} />
+          </div>
+        )}
 
         {formulasOpen && (
           <FormulaPanel open={formulasOpen} onClose={() => setFormulasOpen(false)} />
@@ -2298,6 +2978,10 @@ export default function MovieSheet({
       </div>
 
       <div ref={cardRef} className="hfa-card" style={{ display: "none" }} />
+
+      {shareOpen && (
+        <ShareDialog movieId={movieId} onClose={() => setShareOpen(false)} />
+      )}
 
       {entry && (
         <ShowEntryDialog
@@ -2742,6 +3426,196 @@ function ShowEntryDialog({
           >
             Save
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Share dialog: invite people by email as Viewer / Editor ──
+function ShareDialog({
+  movieId,
+  onClose,
+}: {
+  movieId: string;
+  onClose: () => void;
+}) {
+  const DOMAIN = "@svf.in";
+  const [owner, setOwner] = useState<string | null>(null);
+  const [shares, setShares] = useState<{ email: string; role: string }[]>([]);
+  const [username, setUsername] = useState(""); // part before @svf.in
+  const [role, setRole] = useState<"editor" | "viewer">("editor");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [known, setKnown] = useState<{ email: string; name: string }[]>([]);
+
+  async function load() {
+    try {
+      const res = await fetch(`/api/movies/${movieId}/shares`, { cache: "no-store" });
+      if (!res.ok) {
+        setErr(res.status === 403 ? "Only the owner can manage sharing." : "Failed to load.");
+        return;
+      }
+      const j = await res.json();
+      setOwner(j.owner ?? null);
+      setShares(j.shares ?? []);
+      setErr("");
+    } catch {
+      setErr("Failed to load.");
+    }
+  }
+  useEffect(() => {
+    load();
+    // existing users → autocomplete + "recognized" check
+    fetch("/api/users/suggest", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { users: [] }))
+      .then((j) => setKnown(j.users ?? []))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const emailFor = (u: string) => {
+    const s = u.trim().toLowerCase();
+    return s.includes("@") ? s : s.replace(/\s+/g, "") + DOMAIN;
+  };
+  const target = emailFor(username);
+  const recognized = known.some((k) => k.email.toLowerCase() === target);
+
+  async function add() {
+    const e = target;
+    if (!e.includes("@") || e.startsWith("@")) {
+      setErr("Enter a username.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/movies/${movieId}/shares`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: e, role }),
+      });
+      if (!res.ok) {
+        setErr((await res.json().catch(() => ({}))).error || "Failed.");
+      } else {
+        setUsername("");
+        await load();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(e: string) {
+    await fetch(`/api/movies/${movieId}/shares?email=${encodeURIComponent(e)}`, {
+      method: "DELETE",
+    });
+    load();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-xl border border-line shadow-pop"
+        style={{ backgroundColor: "var(--surface)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <h3 className="text-base font-semibold text-strong">Share this movie</h3>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-faint hover:bg-chip hover:text-body"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        <div className="px-5 py-4">
+          <div className="mb-2 flex gap-2">
+            <div className="flex flex-1 items-stretch rounded-md border border-line bg-surface focus-within:border-brand-400">
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="username"
+                list="svf-user-suggestions"
+                className="w-full rounded-l-md bg-transparent px-3 py-2 text-sm outline-none"
+                onKeyDown={(e) => e.key === "Enter" && add()}
+              />
+              <span className="flex items-center rounded-r-md border-l border-line bg-muted px-2 text-sm text-faint">
+                {DOMAIN}
+              </span>
+            </div>
+            <datalist id="svf-user-suggestions">
+              {known.map((k) => (
+                <option key={k.email} value={k.email.replace(DOMAIN, "")}>
+                  {k.name || k.email}
+                </option>
+              ))}
+            </datalist>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as "editor" | "viewer")}
+              className="rounded-md border border-line bg-surface px-2 py-2 text-sm text-body outline-none focus:border-brand-400"
+            >
+              <option value="editor">Editor</option>
+              <option value="viewer">Viewer</option>
+            </select>
+            <button
+              onClick={add}
+              disabled={busy}
+              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-40"
+            >
+              Add
+            </button>
+          </div>
+          {/* recognize whether this username already has a login account */}
+          {username.trim() && (
+            <p className="mb-2 text-[11px]">
+              {recognized ? (
+                <span className="text-brand-600">✓ {target} is a registered user.</span>
+              ) : (
+                <span className="text-amber-600">
+                  {target} has no login yet — create it in Admin → Users so they can sign in.
+                </span>
+              )}
+            </p>
+          )}
+          {err && <p className="mb-2 text-xs text-rose-600">{err}</p>}
+
+          <div className="rounded-lg border border-line">
+            {owner && (
+              <div className="flex items-center justify-between px-3 py-2 text-sm">
+                <span className="text-body">{owner}</span>
+                <span className="text-xs text-faint">Owner</span>
+              </div>
+            )}
+            {shares.length === 0 && !owner && (
+              <p className="px-3 py-3 text-sm text-faint">Not shared with anyone yet.</p>
+            )}
+            {shares.map((s) => (
+              <div
+                key={s.email}
+                className="flex items-center justify-between border-t border-line px-3 py-2 text-sm"
+              >
+                <span className="text-body">{s.email}</span>
+                <span className="flex items-center gap-3">
+                  <span className="text-xs capitalize text-faint">{s.role}</span>
+                  <button
+                    onClick={() => remove(s.email)}
+                    className="text-xs font-medium text-rose-600 hover:underline"
+                  >
+                    Remove
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-faint">
+            Editors can change the sheet; Viewers can only look. Everyone with
+            access sees each other&apos;s edits within a couple of seconds.
+          </p>
         </div>
       </div>
     </div>

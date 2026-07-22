@@ -40,3 +40,10 @@ export function verifyPassword(password: string, stored: string | null): boolean
   const b = Buffer.from(hh, "hex");
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+
+// Hash a password as "saltHex:hashHex" (same scheme verifyPassword expects).
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(String(password), salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}

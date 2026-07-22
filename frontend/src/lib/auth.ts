@@ -56,3 +56,25 @@ export function verifySession(token: string | undefined | null): boolean {
 }
 
 export const SESSION_MAX_AGE = MAX_AGE_SEC;
+
+/** Extract the email from a valid session token (null if invalid/expired). */
+export function sessionEmail(token: string | undefined | null): string | null {
+  if (!verifySession(token)) return null;
+  try {
+    const body = token!.split(".")[0];
+    const payload = Buffer.from(body, "base64url").toString();
+    return payload.split("|")[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Email of whoever is signed in — admin OR movies-user session. */
+export async function currentEmail(): Promise<string | null> {
+  const { cookies } = await import("next/headers");
+  const jar = await cookies();
+  return (
+    sessionEmail(jar.get(SESSION_COOKIE)?.value) ??
+    sessionEmail(jar.get(USER_SESSION_COOKIE)?.value)
+  );
+}

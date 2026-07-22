@@ -71,5 +71,25 @@ export async function POST(req: Request) {
     return res;
   }
 
+  // 4) App user (admin-created account) — logs in with their own email so
+  //    owned + shared movies show up in their profile.
+  try {
+    const u = await pool.query(
+      `SELECT email, password_hash FROM app_users WHERE lower(email) = $1 LIMIT 1`,
+      [em]
+    );
+    const appUser = u.rows[0];
+    if (appUser && verifyPassword(password, appUser.password_hash)) {
+      const res = NextResponse.json({ role: "user", redirect: "/movies" });
+      res.cookies.set(USER_SESSION_COOKIE, signSession(appUser.email), {
+        ...cookieOpts,
+        maxAge: SESSION_MAX_AGE,
+      });
+      return res;
+    }
+  } catch {
+    /* app_users table may not exist yet — ignore */
+  }
+
   return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
 }

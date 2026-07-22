@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Hide the dev-mode "N" indicator entirely (dev only; never in production).
+  devIndicators: false,
 };
 
 export default nextConfig;
+
