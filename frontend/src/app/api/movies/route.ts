@@ -26,12 +26,23 @@ async function ensureTable() {
   ensured = true;
 }
 
-type Row = { id: string; name: string; release: string | null; created_at: string };
+type Row = {
+  id: string;
+  name: string;
+  release: string | null;
+  created_at: string;
+  owned?: boolean;
+  owner_email?: string | null;
+  share_role?: string | null;
+};
 const toMovie = (r: Row) => ({
   id: r.id,
   name: r.name,
   release: r.release ?? "",
   createdAt: Number(r.created_at),
+  owned: r.owned !== false, // admin/owner → true; shared-with-me → false
+  ownerEmail: r.owner_email ?? null,
+  role: r.share_role ?? (r.owned === false ? "viewer" : "editor"),
 });
 
 export async function GET() {
@@ -42,7 +53,7 @@ export async function GET() {
   // Admin sees every movie; a user sees only the ones they own or are shared.
   if (email.toLowerCase() === ADMIN) {
     const { rows } = await pool.query<Row>(
-      "SELECT id, name, release, created_at FROM movies ORDER BY created_at DESC"
+      "SELECT id, name, release, created_at, TRUE AS owned, owner_email FROM movies ORDER BY created_at DESC"
     );
     return NextResponse.json({ movies: rows.map(toMovie) });
   }
@@ -54,11 +65,17 @@ export async function GET() {
          PRIMARY KEY (movie_id, email))`
     )
     .catch(() => {});
+  // Join only THIS user's share row so we can tell owned vs shared-with-me and
+  // surface the role. A user sees a movie if they own it OR it's shared to them.
   const { rows } = await pool.query<Row>(
-    `SELECT DISTINCT m.id, m.name, m.release, m.created_at
+    `SELECT DISTINCT m.id, m.name, m.release, m.created_at,
+            (lower(m.owner_email) = lower($1)) AS owned,
+            m.owner_email,
+            s.role AS share_role
        FROM movies m
-       LEFT JOIN movie_shares s ON s.movie_id = m.id
-      WHERE lower(m.owner_email) = lower($1) OR lower(s.email) = lower($1)
+       LEFT JOIN movie_shares s
+         ON s.movie_id = m.id AND lower(s.email) = lower($1)
+      WHERE lower(m.owner_email) = lower($1) OR s.email IS NOT NULL
       ORDER BY m.created_at DESC`,
     [email]
   );

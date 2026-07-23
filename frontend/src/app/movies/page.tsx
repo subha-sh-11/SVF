@@ -196,38 +196,54 @@ export default function MoviesPage() {
                         className="min-w-0 flex-1"
                         onClick={() => setHistoryOpen(false)}
                       >
-                        <p className="truncate text-sm font-medium text-strong">
-                          {m.name}
+                        <p className="flex items-center gap-1.5 truncate text-sm font-medium text-strong">
+                          <span className="truncate">{m.name}</span>
+                          {m.owned === false && (
+                            <span
+                              title={
+                                m.ownerEmail
+                                  ? `Shared by ${m.ownerEmail}`
+                                  : "Shared with you"
+                              }
+                              className="shrink-0 rounded-full bg-brand-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-brand-700"
+                            >
+                              Shared
+                            </span>
+                          )}
                         </p>
-                        <p className="text-[11px] text-faint">
-                          {m.createdAt
+                        <p className="truncate text-[11px] text-faint">
+                          {m.owned === false
+                            ? `Shared by ${m.ownerEmail || "another user"}`
+                            : m.createdAt
                             ? "Uploaded " +
                               new Date(m.createdAt).toLocaleDateString()
                             : "Uploaded sheet"}
                         </p>
                       </Link>
-                      <button
-                        onClick={() => {
-                          if (
-                            confirm(
-                              `Delete “${m.name}”? This permanently removes the uploaded sheet.`
+                      {m.owned !== false && (
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Delete “${m.name}”? This permanently removes the uploaded sheet.`
+                              )
                             )
-                          )
-                            deleteMovie(m.id);
-                        }}
-                        title="Delete"
-                        className="shrink-0 rounded p-1 text-faint opacity-0 transition hover:bg-surface hover:text-rose-500 group-hover:opacity-100"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={1.8}
+                              deleteMovie(m.id);
+                          }}
+                          title="Delete"
+                          className="shrink-0 rounded p-1 text-faint opacity-0 transition hover:bg-surface hover:text-rose-500 group-hover:opacity-100"
                         >
-                          <path d="M5 7h14M10 7V5h4v2m-6 0v12h8V7" />
-                        </svg>
-                      </button>
+                          <svg
+                            viewBox="0 0 24 24"
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={1.8}
+                          >
+                            <path d="M5 7h14M10 7V5h4v2m-6 0v12h8V7" />
+                          </svg>
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -353,17 +369,80 @@ export default function MoviesPage() {
         {uploadErr && <p className="mt-2 text-xs text-rose-600">{uploadErr}</p>}
       </div>
 
-      {/* The uploaded-sheet history lives in the hamburger drawer (top-left). */}
-      <p className="text-center text-xs text-faint">
-        Your uploaded sheets are saved — open them any time from the{" "}
-        <button
-          onClick={() => setHistoryOpen(true)}
-          className="font-medium text-brand-600 hover:underline"
-        >
-          ☰ menu
-        </button>{" "}
-        (top-left).
-      </p>
+      {/* Shared with you — surfaced on the page so the recipient notices. Your
+          own uploads stay tucked in the ☰ drawer. */}
+      {(() => {
+        const shared = movies.filter((m) => m.owned === false);
+        if (shared.length === 0) {
+          return (
+            <p className="text-center text-xs text-faint">
+              Your uploaded sheets are saved — open them any time from the{" "}
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="font-medium text-brand-600 hover:underline"
+              >
+                ☰ menu
+              </button>{" "}
+              (top-left).
+            </p>
+          );
+        }
+        return (
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-strong">
+                Shared with you
+              </h2>
+              <span className="rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+                {shared.length}
+              </span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {shared.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/movies/${m.id}`}
+                  className="group flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <div
+                    className="h-1.5 w-full"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(90deg, var(--brand-500), var(--brand-300))",
+                    }}
+                  />
+                  <div className="flex flex-1 flex-col p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="truncate text-base font-semibold text-strong">
+                        {m.name}
+                      </p>
+                      <span className="shrink-0 rounded-full bg-brand-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-brand-700">
+                        {m.role === "viewer" ? "View" : "Edit"}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-faint">
+                      Shared by {m.ownerEmail || "another user"}
+                    </p>
+                    <span className="mt-4 inline-flex items-center justify-center rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition group-hover:bg-brand-700">
+                      Open sheet →
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <p className="mt-6 text-center text-xs text-faint">
+              Your own uploads are in the{" "}
+              <button
+                onClick={() => setHistoryOpen(true)}
+                className="font-medium text-brand-600 hover:underline"
+              >
+                ☰ menu
+              </button>{" "}
+              (top-left).
+            </p>
+          </div>
+        );
+      })()}
     </div>
   );
 }

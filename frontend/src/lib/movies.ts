@@ -7,6 +7,9 @@ export type Movie = {
   name: string;
   release: string; // free text / date
   createdAt: number;
+  owned?: boolean; // false → shared with me (not my upload)
+  ownerEmail?: string | null; // who uploaded/owns it
+  role?: string; // my access: "editor" | "viewer"
 };
 
 // Movies are stored in the shared Postgres DB (via /api/movies) so every admin
