@@ -18,6 +18,7 @@ export default function MoviesPage() {
   const [uploadMsg, setUploadMsg] = useState("");
   const [uploadErr, setUploadErr] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [me, setMe] = useState<{
     email: string | null;
     isAdmin?: boolean;
@@ -131,6 +132,111 @@ export default function MoviesPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
+      {/* Hamburger → opens the upload history drawer */}
+      <button
+        onClick={() => setHistoryOpen(true)}
+        title="Show uploaded sheets"
+        className="fixed left-4 top-4 z-40 flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-surface text-body shadow-sm hover:bg-chip"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* History drawer */}
+      {historyOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40"
+          onClick={() => setHistoryOpen(false)}
+        >
+          <aside
+            className="absolute left-0 top-0 flex h-full w-80 max-w-[85vw] flex-col border-r border-line shadow-pop"
+            style={{ backgroundColor: "var(--surface)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+              <h2 className="text-sm font-semibold text-strong">
+                Uploaded sheets
+              </h2>
+              <button
+                onClick={() => setHistoryOpen(false)}
+                className="rounded-md p-1 text-faint hover:bg-chip hover:text-body"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {movies.length === 0 ? (
+                <p className="px-1 py-6 text-center text-sm text-faint">
+                  Nothing uploaded yet.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {movies.map((m) => (
+                    <li
+                      key={m.id}
+                      className="group flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-chip"
+                    >
+                      <Link
+                        href={`/movies/${m.id}`}
+                        className="min-w-0 flex-1"
+                        onClick={() => setHistoryOpen(false)}
+                      >
+                        <p className="truncate text-sm font-medium text-strong">
+                          {m.name}
+                        </p>
+                        <p className="text-[11px] text-faint">
+                          {m.createdAt
+                            ? "Uploaded " +
+                              new Date(m.createdAt).toLocaleDateString()
+                            : "Uploaded sheet"}
+                        </p>
+                      </Link>
+                      <button
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Delete “${m.name}”? This permanently removes the uploaded sheet.`
+                            )
+                          )
+                            deleteMovie(m.id);
+                        }}
+                        title="Delete"
+                        className="shrink-0 rounded p-1 text-faint opacity-0 transition hover:bg-surface hover:text-rose-500 group-hover:opacity-100"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={1.8}
+                        >
+                          <path d="M5 7h14M10 7V5h4v2m-6 0v12h8V7" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+
       {/* Impersonation banner — admin is viewing a user's profile */}
       {me.impersonating && (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
@@ -247,72 +353,17 @@ export default function MoviesPage() {
         {uploadErr && <p className="mt-2 text-xs text-rose-600">{uploadErr}</p>}
       </div>
 
-      {/* Uploaded sheets */}
-      {movies.length === 0 ? (
-        <p className="rounded-lg border border-line bg-surface px-4 py-10 text-center text-sm text-faint">
-          Nothing uploaded yet. Upload an Excel file above to get started.
-        </p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {movies.map((m) => (
-            <div
-              key={m.id}
-              className="group flex flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div
-                className="h-1.5 w-full"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(90deg, var(--brand-500), var(--brand-300))",
-                }}
-              />
-              <div className="flex flex-1 flex-col p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-semibold text-strong">
-                      {m.name}
-                    </p>
-                    <p className="text-xs text-faint">
-                      {m.createdAt
-                        ? "Uploaded " +
-                          new Date(m.createdAt).toLocaleDateString()
-                        : "Uploaded sheet"}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (
-                        confirm(
-                          `Delete “${m.name}”? This permanently removes the uploaded sheet.`
-                        )
-                      )
-                        deleteMovie(m.id);
-                    }}
-                    title="Delete"
-                    className="rounded p-1 text-faint opacity-0 transition hover:bg-chip hover:text-rose-500 group-hover:opacity-100"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={1.8}
-                    >
-                      <path d="M5 7h14M10 7V5h4v2m-6 0v12h8V7" />
-                    </svg>
-                  </button>
-                </div>
-                <Link
-                  href={`/movies/${m.id}`}
-                  className="mt-4 inline-flex items-center justify-center rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
-                >
-                  Open sheet →
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* The uploaded-sheet history lives in the hamburger drawer (top-left). */}
+      <p className="text-center text-xs text-faint">
+        Your uploaded sheets are saved — open them any time from the{" "}
+        <button
+          onClick={() => setHistoryOpen(true)}
+          className="font-medium text-brand-600 hover:underline"
+        >
+          ☰ menu
+        </button>{" "}
+        (top-left).
+      </p>
     </div>
   );
 }
