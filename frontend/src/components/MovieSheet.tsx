@@ -2670,14 +2670,47 @@ export default function MovieSheet({
       // a live snapshot that lacks/renames sheetOrder).
       const cur = JSON.parse(JSON.stringify(univerSnapRef.current));
       cur.sheets = cur.sheets || {};
+      cur.styles = cur.styles || {};
       if (!Array.isArray(cur.sheetOrder))
         cur.sheetOrder = Object.keys(cur.sheets);
+
+      // CRITICAL: both workbooks use numeric style ids ("1","2",…). Merge the
+      // incoming styles under FRESH ids and remap every imported cell's `s`
+      // reference — otherwise the new sheet points at the wrong (or missing)
+      // styles and Univer can fail to build the workbook (nothing shows up).
+      const incStyles = incoming.styles || {};
+      const styleRemap: Record<string, string> = {};
+      let styleSeq = 0;
+      const freshStyleId = () => {
+        let id: string;
+        do {
+          id = "imp-s" + ++styleSeq;
+        } while (cur.styles[id]);
+        return id;
+      };
+      for (const oldId of Object.keys(incStyles)) {
+        const nid = freshStyleId();
+        styleRemap[oldId] = nid;
+        cur.styles[nid] = incStyles[oldId];
+      }
+
       const names = new Set<string>(
         cur.sheetOrder.map((id: string) => cur.sheets[id]?.name)
       );
+      const added: string[] = [];
       let seq = 0;
       for (const sid of incoming.sheetOrder) {
         const sheet = incoming.sheets[sid];
+        // Point this sheet's cells at the remapped style ids.
+        const cd = sheet.cellData || {};
+        for (const r of Object.keys(cd)) {
+          const rowCells = cd[r];
+          for (const c of Object.keys(rowCells)) {
+            const cell = rowCells[c];
+            if (cell && cell.s != null && styleRemap[cell.s] != null)
+              cell.s = styleRemap[cell.s];
+          }
+        }
         const newId = `imp-${Date.now().toString(36)}-${seq++}`;
         sheet.id = newId;
         let nm = sheet.name || "Sheet";
@@ -2687,6 +2720,7 @@ export default function MovieSheet({
         sheet.name = nm;
         cur.sheets[newId] = sheet;
         cur.sheetOrder.push(newId);
+        added.push(nm);
       }
       univerSnapRef.current = cur;
       univerReadyRef.current = true;
@@ -2695,6 +2729,15 @@ export default function MovieSheet({
       saveDays(currentDaysForSave());
       lastEditRef.current = Date.now();
       serverSave();
+      alert(
+        added.length
+          ? `Added ${added.length} sheet${added.length > 1 ? "s" : ""}: ${added.join(
+              ", "
+            )}\n\nLook for the new tab${
+              added.length > 1 ? "s" : ""
+            } at the far right of the tab bar.`
+          : "That file had no sheets to import."
+      );
     } catch (e) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const msg = (e as any)?.message || String(e);
@@ -2703,6 +2746,36 @@ export default function MovieSheet({
           msg +
           "\n\n(Only .xlsx files are supported — .xls/.csv won't work for import.)"
       );
+    }
+  }
+
+  // Download the current spreadsheet as a real .xlsx (values + styling).
+  async function downloadExcel() {
+    const snap = univerSnapRef.current;
+    if (!snap || !snap.sheets) {
+      alert("Nothing to download yet — the sheet is empty.");
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ExcelJSmod: any = await import("exceljs");
+      const ExcelJS = ExcelJSmod.default ?? ExcelJSmod;
+      const { univerSnapshotToExcel } = await import("@/lib/univerToExcel");
+      const wb = await univerSnapshotToExcel(snap, ExcelJS);
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(movieName || "sheet").replace(/[^\w.-]+/g, "_")}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch {
+      alert("Could not generate the Excel file.");
     }
   }
 
@@ -2892,6 +2965,13 @@ export default function MovieSheet({
               >
                 ➕ Import into workbook
               </button>
+              <button
+                onClick={downloadExcel}
+                title="Download this spreadsheet as an .xlsx file"
+                className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
+              >
+                ⬇ Download Excel
+              </button>
             </>
           )}
           <button
@@ -2944,23 +3024,27 @@ export default function MovieSheet({
           sheet (below the toolbar) and never cover the header or its scrollbar */}
       <div className="flex min-h-0 flex-1">
         {plainMode ? (
-          <div className="relative min-h-0 flex-1">
-            {loading && (
-              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-                <div
-                  className="flex items-center gap-3 rounded-xl border border-line px-5 py-4 text-sm font-medium text-body shadow-pop"
-                  style={{ backgroundColor: "var(--surface)" }}
-                >
-                  <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-brand-300 border-t-brand-600" />
-                  Loading spreadsheet…
+          <div className="min-h-0 flex-1 p-3">
+            {/* The spreadsheet lives inside a rounded card instead of bleeding
+                edge-to-edge across the whole window. */}
+            <div className="relative h-full w-full overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+              {loading && (
+                <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                  <div
+                    className="flex items-center gap-3 rounded-xl border border-line px-5 py-4 text-sm font-medium text-body shadow-pop"
+                    style={{ backgroundColor: "var(--surface)" }}
+                  >
+                    <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-brand-300 border-t-brand-600" />
+                    Loading spreadsheet…
+                  </div>
                 </div>
-              </div>
-            )}
-            <UniverSheet
-              key={univerKey}
-              snapshot={univerSnap}
-              onChange={onUniverChange}
-            />
+              )}
+              <UniverSheet
+                key={univerKey}
+                snapshot={univerSnap}
+                onChange={onUniverChange}
+              />
+            </div>
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
@@ -3517,6 +3601,18 @@ function ShareDialog({
     });
     load();
   }
+  // Change a person's access (Editor ↔ Viewer). Re-POSTing upserts the role.
+  async function changeRole(e: string, newRole: "editor" | "viewer") {
+    setShares((prev) =>
+      prev.map((s) => (s.email === e ? { ...s, role: newRole } : s))
+    ); // optimistic
+    await fetch(`/api/movies/${movieId}/shares`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: e, role: newRole }),
+    });
+    load();
+  }
 
   return (
     <div
@@ -3608,7 +3704,16 @@ function ShareDialog({
               >
                 <span className="text-body">{s.email}</span>
                 <span className="flex items-center gap-3">
-                  <span className="text-xs capitalize text-faint">{s.role}</span>
+                  <select
+                    value={s.role === "viewer" ? "viewer" : "editor"}
+                    onChange={(e) =>
+                      changeRole(s.email, e.target.value as "editor" | "viewer")
+                    }
+                    className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs text-body outline-none focus:border-brand-400"
+                  >
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
                   <button
                     onClick={() => remove(s.email)}
                     className="text-xs font-medium text-rose-600 hover:underline"

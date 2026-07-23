@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 type AppUser = {
   id: string;
@@ -72,6 +72,38 @@ export default function UsersPage() {
     if (!confirm(`Delete user ${em}? They will lose access.`)) return;
     await fetch(`/api/users?id=${encodeURIComponent(id)}`, { method: "DELETE" });
     load();
+  }
+
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  async function loginAs(em: string) {
+    const res = await fetch("/api/users/login-as", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: em }),
+    });
+    if (res.ok) {
+      // Open their profile in a new tab — you stay admin here; click "Return to
+      // admin" in that tab (or it expires in 1h).
+      window.open("/movies", "_blank");
+    } else {
+      alert((await res.json().catch(() => ({}))).error || "Could not log in as user.");
+    }
+  }
+
+  async function resetPassword(id: string, em: string) {
+    const pw = prompt(`Set a new password for ${em}:`);
+    if (!pw) return;
+    if (pw.length < 4) {
+      alert("Password must be at least 4 characters.");
+      return;
+    }
+    const res = await fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, password: pw }),
+    });
+    alert(res.ok ? `Password updated for ${em}.` : "Could not update password.");
   }
 
   return (
@@ -150,21 +182,69 @@ export default function UsersPage() {
               </tr>
             ) : (
               users.map((u) => (
-                <tr key={u.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-2 text-body">{u.name || "—"}</td>
-                  <td className="px-4 py-2 font-medium text-strong">{u.email}</td>
-                  <td className="px-4 py-2 text-faint">
-                    {new Date(u.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => remove(u.id, u.email)}
-                      className="text-xs font-medium text-rose-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
+                <Fragment key={u.id}>
+                  <tr
+                    className="cursor-pointer border-b border-line last:border-0 hover:bg-muted/40"
+                    onClick={() => setExpanded(expanded === u.id ? null : u.id)}
+                  >
+                    <td className="px-4 py-2 text-body">
+                      <span className="mr-1 inline-block text-faint">
+                        {expanded === u.id ? "▾" : "▸"}
+                      </span>
+                      {u.name || "—"}
+                    </td>
+                    <td className="px-4 py-2 font-medium text-strong">{u.email}</td>
+                    <td className="px-4 py-2 text-faint">
+                      {new Date(u.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          remove(u.id, u.email);
+                        }}
+                        className="text-xs font-medium text-rose-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                  {expanded === u.id && (
+                    <tr className="border-b border-line bg-muted/30">
+                      <td colSpan={4} className="px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-4">
+                          <div className="text-xs text-faint">
+                            <div>
+                              <span className="font-semibold text-body">Login email:</span>{" "}
+                              {u.email}
+                            </div>
+                            <div>
+                              <span className="font-semibold text-body">Name:</span>{" "}
+                              {u.name || "—"}
+                            </div>
+                            <div className="mt-0.5 italic">
+                              Passwords are encrypted and can't be shown — use Reset.
+                            </div>
+                          </div>
+                          <div className="ml-auto flex gap-2">
+                            <button
+                              onClick={() => loginAs(u.email)}
+                              className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+                            >
+                              ↗ Login as this user
+                            </button>
+                            <button
+                              onClick={() => resetPassword(u.id, u.email)}
+                              className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
+                            >
+                              Reset password
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))
             )}
           </tbody>

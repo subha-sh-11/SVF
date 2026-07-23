@@ -144,16 +144,18 @@ function cellStyle(cell: any): any | undefined {
 
 function cellValue(cell: any): { v?: any; f?: string } {
   // Formula cell (regular OR shared) — cell.formula returns the translated
-  // formula string for this cell; give Univer the formula + cached result.
+  // formula string for this cell. Keep the formula (so it shows in the formula
+  // bar) AND the cached result (so the value still shows even if Univer can't
+  // recompute a given function).
   if (cell.formula) {
-    // Show EXACTLY what Excel stored (its cached result) — do NOT hand Univer
-    // the formula to recompute, or it can differ / error out as #VALUE!.
+    const raw = String(cell.formula);
+    const f = raw.startsWith("=") ? raw : "=" + raw;
     const r = cell.result;
-    if (r != null && typeof r !== "object") return { v: r }; // real value
-    if (r && typeof r === "object" && "error" in r) return {}; // error → blank
-    // Shared-formula children have no cached result in ExcelJS; in this file
-    // they evaluate to 0 (displayed as "-" via the number format).
-    return { v: 0 };
+    if (r != null && typeof r !== "object") return { v: r, f }; // value + formula
+    if (r && typeof r === "object" && "error" in r) return { f }; // let Univer recompute
+    // Shared-formula children have no cached result in ExcelJS — hand Univer the
+    // formula so it computes the value itself.
+    return { f };
   }
   const val = cell.value;
   if (val == null) return {};

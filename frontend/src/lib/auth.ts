@@ -69,12 +69,19 @@ export function sessionEmail(token: string | undefined | null): string | null {
   }
 }
 
-/** Email of whoever is signed in — admin OR movies-user session. */
+export const IMPERSONATE_COOKIE = "svf_impersonate";
+
+/** Email of whoever is signed in — admin OR movies-user session. When the admin
+ *  is impersonating a user ("Login as"), returns that user's email so movie
+ *  access/filtering behaves exactly as that user. Admin-only endpoints keep
+ *  checking SESSION_COOKIE directly, so management access is unaffected. */
 export async function currentEmail(): Promise<string | null> {
   const { cookies } = await import("next/headers");
   const jar = await cookies();
-  return (
-    sessionEmail(jar.get(SESSION_COOKIE)?.value) ??
-    sessionEmail(jar.get(USER_SESSION_COOKIE)?.value)
-  );
+  const admin = sessionEmail(jar.get(SESSION_COOKIE)?.value);
+  if (admin) {
+    const imp = sessionEmail(jar.get(IMPERSONATE_COOKIE)?.value);
+    return imp ?? admin;
+  }
+  return sessionEmail(jar.get(USER_SESSION_COOKIE)?.value);
 }

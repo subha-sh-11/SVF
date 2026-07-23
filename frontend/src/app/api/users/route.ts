@@ -86,3 +86,24 @@ export async function DELETE(req: Request) {
   await pool.query("DELETE FROM app_users WHERE id=$1", [id]);
   return NextResponse.json({ ok: true });
 }
+
+// Reset a user's password (passwords are hashed and can't be read back).
+export async function PATCH(req: Request) {
+  if (!(await isAdmin()))
+    return NextResponse.json({ error: "Admins only." }, { status: 403 });
+  await ensureTable();
+  const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const id = String(b.id ?? "");
+  const password = String(b.password ?? "");
+  if (!id) return NextResponse.json({ error: "id required." }, { status: 400 });
+  if (password.length < 4)
+    return NextResponse.json(
+      { error: "Password must be at least 4 characters." },
+      { status: 400 }
+    );
+  await pool.query("UPDATE app_users SET password_hash=$1 WHERE id=$2", [
+    hashPassword(password),
+    id,
+  ]);
+  return NextResponse.json({ ok: true });
+}

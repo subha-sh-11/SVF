@@ -33,13 +33,6 @@ const NAV = [
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm10 4 2 2 4-4" />
     ),
   },
-  {
-    href: "/admin/roles",
-    label: "Roles",
-    icon: (
-      <path d="M12 2 4 5v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V5l-8-3Zm-2 9 2 2 4-4" />
-    ),
-  },
 ];
 
 export default function Sidebar() {
