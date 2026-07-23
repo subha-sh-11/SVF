@@ -18,6 +18,9 @@ export default function UniverSheet({
   const univerRef = useRef<any>(null);
   const apiRef = useRef<any>(null);
   const lastRef = useRef("");
+  const sigRef = useRef<(o: unknown) => string>((o) => JSON.stringify(o));
+  const replacingRef = useRef(false); // applying an external snapshot in place
+  const initialSnapRef = useRef(snapshot); // the snapshot we mounted with
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
@@ -66,6 +69,7 @@ export default function UniverSheet({
       // don't fire a "change" (and a save) on every poll when nothing changed.
       const sig = (o: unknown) =>
         JSON.stringify(o, (k, v) => (k === "rev" ? undefined : v));
+      sigRef.current = sig;
       // Seed from the ACTUAL created workbook so the first real edit — not the
       // initial state — triggers the first save.
       try {
@@ -78,6 +82,7 @@ export default function UniverSheet({
 
       // Poll the workbook snapshot for edits → notify the parent (debounced feel).
       saveIv = setInterval(() => {
+        if (replacingRef.current) return; // mid external-update; don't echo it back
         try {
           const wb = univerAPI.getActiveWorkbook?.();
           if (!wb) return;
@@ -101,9 +106,39 @@ export default function UniverSheet({
       univerRef.current = null;
       apiRef.current = null;
     };
-    // Re-init only on mount; external snapshot swaps are done via a `key` remount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When the parent passes a NEW snapshot (a remote collaborator's save), update
+  // the workbook IN PLACE — dispose the current unit + recreate inside the same
+  // engine — instead of remounting the whole component (which blanks the screen).
+  useEffect(() => {
+    if (snapshot === initialSnapRef.current) return; // that's the mount value
+    const api = apiRef.current;
+    if (!api || !snapshot) return;
+    try {
+      const sig = sigRef.current;
+      // Skip if the incoming content matches what's already shown (our own save).
+      if (sig(snapshot) === lastRef.current) return;
+      replacingRef.current = true;
+      const cur = api.getActiveWorkbook?.();
+      const id = cur?.getId?.();
+      // Dispose the old unit first, then recreate with the SAME id — avoids an
+      // id collision and keeps ids stable (no sync ping-pong). Fast because the
+      // Univer engine stays alive (only the workbook data is swapped).
+      if (id && api.disposeUnit) {
+        try {
+          api.disposeUnit(id);
+        } catch {}
+      }
+      api.createWorkbook(snapshot);
+      lastRef.current = sig(snapshot);
+      setTimeout(() => (replacingRef.current = false), 400);
+    } catch {
+      replacingRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot]);
 
   return (
     <div

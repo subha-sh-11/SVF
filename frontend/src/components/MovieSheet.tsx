@@ -1175,9 +1175,11 @@ export default function MovieSheet({
     return snap;
   }
 
-  function applyBlob(blob: any) {
+  // inPlace=true → update the workbook WITHOUT remounting Univer (no blank
+  // flash for other viewers when a remote edit arrives). Used by the poll.
+  function applyBlob(blob: any, inPlace = false) {
     if (!blob) return;
-    // Uploaded Excel (Univer) copy — swap the workbook snapshot & remount Univer.
+    // Uploaded Excel (Univer) copy — swap the workbook snapshot.
     if (blob.plain && blob.univer) {
       blob.univer = sanitizeUniver(blob.univer);
       pullingRef.current = true;
@@ -1186,7 +1188,9 @@ export default function MovieSheet({
       univerSnapRef.current = blob.univer;
       univerReadyRef.current = true;
       setUniverSnap(blob.univer);
-      setUniverKey((k) => k + 1);
+      // Only remount (blank flash) for the initial load / upload, NOT for
+      // remote collaborative updates — those apply in place inside UniverSheet.
+      if (!inPlace) setUniverKey((k) => k + 1);
       try {
         saveDays([]);
       } catch {}
@@ -2151,7 +2155,7 @@ export default function MovieSheet({
             await fetch(`/api/movies/${movieId}/sheet`, { cache: "no-store" })
           ).json();
           const fdata = await decompress(full.data);
-          if (fdata && fdata.univer) applyBlob(fdata);
+          if (fdata && fdata.univer) applyBlob(fdata, true); // in-place, no blank
           else pullingRef.current = false;
         }
       } catch {
@@ -2942,8 +2946,11 @@ export default function MovieSheet({
         {plainMode ? (
           <div className="relative min-h-0 flex-1">
             {loading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-canvas/80">
-                <div className="flex items-center gap-3 text-sm text-faint">
+              <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                <div
+                  className="flex items-center gap-3 rounded-xl border border-line px-5 py-4 text-sm font-medium text-body shadow-pop"
+                  style={{ backgroundColor: "var(--surface)" }}
+                >
                   <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-brand-300 border-t-brand-600" />
                   Loading spreadsheet…
                 </div>
