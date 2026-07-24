@@ -10,9 +10,11 @@ import "@univerjs/presets/lib/styles/preset-sheets-core.css";
 export default function UniverSheet({
   snapshot,
   onChange,
+  onReady,
 }: {
   snapshot: any;
   onChange?: (snap: any) => void;
+  onReady?: (api: any, phase: "mount" | "replace") => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const univerRef = useRef<any>(null);
@@ -23,10 +25,22 @@ export default function UniverSheet({
   const initialSnapRef = useRef(snapshot); // the snapshot we mounted with
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  // Excel-style Shift+click column-header range selection.
+  const shiftRef = useRef(false); // Shift held at the last pointer/key event
+  const anchorColRef = useRef<number | null>(null); // last plain column click
+  const colEvtDisposeRef = useRef<any>(null); // ColumnHeaderClick disposer
 
   useEffect(() => {
     let disposed = false;
     let saveIv: ReturnType<typeof setInterval> | undefined;
+    // Track whether Shift is held at click time (for column range selection).
+    const onKey = (e: KeyboardEvent) => (shiftRef.current = e.shiftKey);
+    const onDown = (e: MouseEvent) => (shiftRef.current = e.shiftKey);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("pointerdown", onDown, true);
     (async () => {
       const presets = await import("@univerjs/presets");
       const { createUniver, LocaleType, mergeLocales, defaultTheme } =
@@ -49,6 +63,12 @@ export default function UniverSheet({
       });
       univerRef.current = univer;
       apiRef.current = univerAPI;
+      // Dev aid: expose the facade so behaviors can be verified from the console.
+      if (
+        typeof window !== "undefined" &&
+        process.env.NODE_ENV !== "production"
+      )
+        (window as any).__univerAPI = univerAPI;
 
       univerAPI.createWorkbook(
         snapshot || {
@@ -65,6 +85,50 @@ export default function UniverSheet({
           },
         }
       );
+      // Hand the facade API to the parent so it can drive the sheet (e.g. the
+      // special-shows column toggle).
+      try {
+        onReadyRef.current?.(univerAPI, "mount");
+      } catch {}
+
+      // Excel-style column range selection: click a column header, then
+      // Shift+click another → select every column between them (inclusive).
+      // We use Univer's ColumnHeaderClick event (authoritative clicked column)
+      // and override the selection with the correct anchor→target range.
+      try {
+        const EVT =
+          univerAPI.Event?.ColumnHeaderClick ?? "ColumnHeaderClick";
+        colEvtDisposeRef.current = univerAPI.addEvent(EVT, (p: any) => {
+          const col = p?.column;
+          if (typeof col !== "number") return;
+          const ws = p.worksheet;
+          const wb = p.workbook;
+          if (
+            shiftRef.current &&
+            anchorColRef.current != null &&
+            anchorColRef.current !== col &&
+            ws &&
+            wb
+          ) {
+            const a = Math.min(anchorColRef.current, col);
+            const b = Math.max(anchorColRef.current, col);
+            try {
+              const maxRows = ws.getMaxRows?.() ?? 1000;
+              const range = ws.getRange({
+                startRow: 0,
+                endRow: Math.max(0, maxRows - 1),
+                startColumn: a,
+                endColumn: b,
+                rangeType: 2, // RANGE_TYPE.COLUMN
+              });
+              wb.setActiveRange(range);
+            } catch {}
+            // keep the anchor so further shift-clicks extend from the same start
+          } else {
+            anchorColRef.current = col; // new anchor (plain click)
+          }
+        });
+      } catch {}
       // Stable content signature — ignore Univer's volatile "rev" counters so we
       // don't fire a "change" (and a save) on every poll when nothing changed.
       const sig = (o: unknown) =>
@@ -100,6 +164,12 @@ export default function UniverSheet({
     return () => {
       disposed = true;
       if (saveIv) clearInterval(saveIv);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      window.removeEventListener("pointerdown", onDown, true);
+      try {
+        colEvtDisposeRef.current?.dispose?.();
+      } catch {}
       try {
         univerRef.current?.dispose?.();
       } catch {}
@@ -133,6 +203,9 @@ export default function UniverSheet({
       }
       api.createWorkbook(snapshot);
       lastRef.current = sig(snapshot);
+      try {
+        onReadyRef.current?.(api, "replace");
+      } catch {}
       setTimeout(() => (replacingRef.current = false), 400);
     } catch {
       replacingRef.current = false;

@@ -106,17 +106,21 @@ export async function univerSnapshotToExcel(
         );
       } catch {}
     }
-    // column widths
+    // column widths + hidden state
     const colData = sheet.columnData || {};
     for (const c of Object.keys(colData)) {
       const w = colData[c]?.w;
-      if (w) ws.getColumn(Number(c) + 1).width = Math.max(4, w / 7);
+      const col = ws.getColumn(Number(c) + 1);
+      if (w) col.width = Math.max(4, w / 7);
+      if (colData[c]?.hd) col.hidden = true;
     }
-    // row heights
+    // row heights + hidden state
     const rowData = sheet.rowData || {};
     for (const r of Object.keys(rowData)) {
       const h = rowData[r]?.h;
-      if (h) ws.getRow(Number(r) + 1).height = h;
+      const row = ws.getRow(Number(r) + 1);
+      if (h) row.height = h;
+      if (rowData[r]?.hd) row.hidden = true;
     }
   }
   if (wb.worksheets.length === 0) wb.addWorksheet("Sheet1");

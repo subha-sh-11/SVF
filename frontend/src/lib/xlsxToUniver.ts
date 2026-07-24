@@ -109,7 +109,8 @@ function cellStyle(cell: any): any | undefined {
     if (font.underline) s.ul = { s: 1 };
     if (font.strike) s.st = { s: 1 };
     if (font.size) s.fs = font.size;
-    if (font.name) s.ff = font.name;
+    // Font family is forced to Calibri workbook-wide via defaultStyle (below),
+    // so we deliberately don't copy per-cell font names here.
     const cl = resolveColor(font.color);
     if (cl) s.cl = { rgb: cl };
   }
@@ -197,12 +198,15 @@ export function excelToUniverSnapshot(wb: any, name = "Uploaded"): any {
     const cellData: any = {};
     let maxRow = 0;
     let maxCol = 0;
+    // Columns whose header reads "Spl - N" (special shows) — collapsed by default.
+    const splCols = new Set<number>();
     ws.eachRow({ includeEmpty: false }, (row: any, rowNumber: number) => {
       const r = rowNumber - 1;
       row.eachCell({ includeEmpty: false }, (cell: any, colNumber: number) => {
         const c = colNumber - 1;
         const { v, f } = cellValue(cell);
         const s = styleId(cellStyle(cell));
+        if (typeof v === "string" && /^\s*spl\s*-/i.test(v)) splCols.add(c);
         if (v == null && f == null && !s) return;
         (cellData[r] ||= {})[c] = {
           ...(v != null ? { v } : {}),
@@ -245,16 +249,25 @@ export function excelToUniverSnapshot(wb: any, name = "Uploaded"): any {
     const columnData: any = {};
     (ws.columns || []).forEach((col: any, idx: number) => {
       if (col && col.width) columnData[idx] = { w: Math.round(col.width * 7) };
+      // Preserve columns hidden in the source Excel (hd = 1).
+      if (col && col.hidden) columnData[idx] = { ...(columnData[idx] || {}), hd: 1 };
       if (col && idx > maxCol) maxCol = idx;
     });
+    // Hide the special-show columns on load (hd = 1); a toolbar toggle re-shows.
+    for (const c of splCols) columnData[c] = { ...(columnData[c] || {}), hd: 1 };
     const rowData: any = {};
     ws.eachRow({ includeEmpty: false }, (row: any, rowNumber: number) => {
-      if (row.height) rowData[rowNumber - 1] = { h: Math.round(row.height) };
+      const rd: any = {};
+      if (row.height) rd.h = Math.round(row.height);
+      if (row.hidden) rd.hd = 1; // preserve rows hidden in the source Excel
+      if (Object.keys(rd).length) rowData[rowNumber - 1] = rd;
     });
 
     sheets[sheetId] = {
       id: sheetId,
       name: ws.name || `Sheet${i + 1}`,
+      // Whole sheet renders in Calibri unless a cell overrides it.
+      defaultStyle: { ff: "Calibri" },
       tabColor: resolveColor(ws.properties?.tabColor),
       // Generous grid so blank space to the right/below fills like a real
       // spreadsheet (Excel/Google Sheets show a full grid of empty cells).
@@ -287,6 +300,7 @@ export function excelToUniverSnapshot(wb: any, name = "Uploaded"): any {
     name,
     appVersion: "1.0.0",
     locale: "enUS",
+    defaultStyle: { ff: "Calibri" }, // whole workbook defaults to Calibri
     sheetOrder,
     sheets,
     styles,

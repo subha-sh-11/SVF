@@ -446,6 +446,9 @@ export default function MovieSheet({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [univerSnap, setUniverSnap] = useState<any>(null); // snapshot to render
   const [univerKey, setUniverKey] = useState(0); // remount Univer on external pull
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const univerApiRef = useRef<any>(null); // Univer facade API (drives col toggle)
+  const [univerSplHidden, setUniverSplHidden] = useState(true); // Spl cols collapsed
   const univerReadyRef = useRef(false); // a real snapshot is loaded (guard saves)
   const [loading, setLoading] = useState(true); // loading the shared copy
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
@@ -2637,6 +2640,58 @@ export default function MovieSheet({
     serverSave();
   }
 
+  // Columns whose header reads "Spl - N" (special shows) on a given sheet snapshot.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function splColsOf(sheetSnap: any): number[] {
+    const cd = sheetSnap?.cellData;
+    if (!cd) return [];
+    const cols = new Set<number>();
+    for (const r of Object.keys(cd)) {
+      if (Number(r) > 40) continue; // headers live near the top
+      const row = cd[r];
+      for (const c of Object.keys(row)) {
+        const v = row[c]?.v;
+        if (typeof v === "string" && /^\s*spl\s*-/i.test(v)) cols.add(Number(c));
+      }
+    }
+    return [...cols];
+  }
+
+  // Whether the current workbook has any special-show columns (→ show the toggle).
+  function hasSplColumns(): boolean {
+    const snap = univerSnapRef.current;
+    if (!snap?.sheets) return false;
+    return Object.values(snap.sheets).some(
+      (s) => splColsOf(s).length > 0
+    );
+  }
+
+  // Show/hide the special-show columns across every sheet (day tab).
+  function setSplVisibility(hidden: boolean) {
+    const api = univerApiRef.current;
+    const snap = univerSnapRef.current;
+    if (!api || !snap?.sheets) return;
+    try {
+      const wb = api.getActiveWorkbook?.();
+      if (!wb) return;
+      const sheets = wb.getSheets?.() || [];
+      for (const ws of sheets) {
+        const id = ws.getSheetId?.();
+        const cols = splColsOf(snap.sheets[id]);
+        for (const c of cols) {
+          if (hidden) ws.hideColumns?.(c, 1);
+          else ws.showColumns?.(c, 1);
+        }
+      }
+    } catch {}
+  }
+
+  function toggleSpl() {
+    const next = !univerSplHidden;
+    setUniverSplHidden(next);
+    setSplVisibility(next);
+  }
+
   // Import a local Excel INTO the current workbook — its sheets are appended as
   // new tabs so the user can keep working (not a replace).
   async function appendExcel(file: File) {
@@ -2972,6 +3027,17 @@ export default function MovieSheet({
               >
                 ⬇ Download Excel
               </button>
+              {hasSplColumns() && (
+                <button
+                  onClick={toggleSpl}
+                  title="Show or hide the special-show (Spl) columns"
+                  className="rounded-md border border-line px-3 py-1.5 text-xs font-medium text-body hover:bg-chip"
+                >
+                  {univerSplHidden
+                    ? "▸ Show special shows"
+                    : "▾ Hide special shows"}
+                </button>
+              )}
             </>
           )}
           <button
@@ -3043,6 +3109,27 @@ export default function MovieSheet({
                 key={univerKey}
                 snapshot={univerSnap}
                 onChange={onUniverChange}
+                onReady={(api, phase) => {
+                  univerApiRef.current = api;
+                  // Reflect the current toggle state on the freshly built book.
+                  setSplVisibility(univerSplHidden);
+                  // On first load/upload, hiding columns can leave them
+                  // highlighted — reset the selection to A1 so nothing appears
+                  // selected. Skip on remote pulls so we don't move a
+                  // collaborator's cursor. Repeat at a few ticks because a big
+                  // sheet may re-apply a selection slightly after load.
+                  if (phase === "mount") {
+                    const toA1 = () => {
+                      try {
+                        const wb = api.getActiveWorkbook?.();
+                        const ws = wb?.getActiveSheet?.();
+                        if (wb && ws) wb.setActiveRange(ws.getRange(0, 0));
+                      } catch {}
+                    };
+                    toA1();
+                    [80, 300, 700, 1200].forEach((d) => setTimeout(toA1, d));
+                  }
+                }}
               />
             </div>
           </div>
